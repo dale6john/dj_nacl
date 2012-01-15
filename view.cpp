@@ -167,7 +167,7 @@ void View::draw(Canvas& canvas, Drawable& gobi) {
 }
 
 #if 0
-void View::draw(Canvas& canvas, uint32_t step, Group& ggrp) {
+void View::Xdraw(Canvas& canvas, uint32_t step, Group& ggrp) {
   //
   // check bounding box
   // draw shape border (if there)

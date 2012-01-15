@@ -1,0 +1,65 @@
+
+c++ class structure
+===================
+
+(X) Gob 
+  - a definition for a graphic shape/object
+
+(X) RectangleTemplate - extends Gob
+  - generic rectangle template
+  - has width, height
+  - overrides fixbb (fix bounding box)
+  - overrides xrange (drawing primitive)
+
+(X) GobInstance - (concrete) - wrapper for Gob-instance, ie. rectangle
+  - has Gob* (?), BoundingBox, InstanceData
+
+Drawable - (concrete) storage for 
+  - has base color, pivot point, and reference point (original Gob)
+  - has bounding box
+  - has at (Point), scale, heading
+  - has displayable
+  - has generic buffer (X)
+  - (abstract) fixbb
+  - (abstract) xrange
+
+Rectangle - extends Drawable
+  - has width, height
+  - overrides fixbb (fix bounding box)
+  - overrides xrange (drawing primitive)
+  - a particular rectangle
+  - has 4 point buffer
+  - has step (?)
+
+View 
+  - does draw(Canvas, Drawable)
+
+DrawableGroup - extends Drawable (applies to group)
+  - has vector<Drawable *>
+  - overrides fixbb (fix bounding box)
+  - overrides xrange (drawing primitive)
+
+
+Canvas -
+
+
+FILE STRUCTURE
+==============
+
+primary
+-------
+dj_inst2.cpp,h - the mechanism that interacts with NaCl dealing with messages
+dj_two.cc,h - the application logic -- the 'game state' mechanism
+
+supporting
+----------
+canvas.h - low level interaction with bitmaps
+view.h, cpp - logical to physical device units mapping
+bitmap.h - reading fonts and bitmaps
+ascii.h - hacked font
+bb.h - bounding box logic
+gob.h - graphic object, base class for renderable items
+point.h - point class
+rectangle.h, cpp - representation of rectangle (uses gob.h)
+types.h - cruft
+

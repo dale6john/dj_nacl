@@ -235,19 +235,6 @@ namespace dj {
     graphics_2d_context_ = NULL;
   }
 
-  void DjTwoInstance::FlushPixelBuffer() {
-    if (!IsContextValid())
-      return;
-    // Note that the pixel lock is held while the buffer is copied into the
-    // device context and then flushed.
-    m_board->redraw((uint32_t*)pixel_buffer_->data());
-    graphics_2d_context_->PaintImageData(*pixel_buffer_, pp::Point());
-    if (flush_pending())
-      return;
-    set_flush_pending(true);
-    graphics_2d_context_->Flush(pp::CompletionCallback(&FlushCallback, this));
-  }
-
   void DjTwoInstance::Paint() {
     ScopedMutexLock scoped_mutex(&pixel_buffer_mutex_);
     if (!scoped_mutex.is_valid()) {
@@ -263,6 +250,19 @@ namespace dj {
     M m(this);
     sprintf(m.buf, "~[%s]", m_text.c_str());
     //}
+  }
+
+  void DjTwoInstance::FlushPixelBuffer() {
+    if (!IsContextValid())
+      return;
+    // Note that the pixel lock is held while the buffer is copied into the
+    // device context and then flushed.
+    m_board->redraw((uint32_t*)pixel_buffer_->data());
+    graphics_2d_context_->PaintImageData(*pixel_buffer_, pp::Point());
+    if (flush_pending())
+      return;
+    set_flush_pending(true);
+    graphics_2d_context_->Flush(pp::CompletionCallback(&FlushCallback, this));
   }
 
   void DjTwoInstance::Clock() {

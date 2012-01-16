@@ -101,7 +101,7 @@ namespace dj {
     }
     m_thuds = 0;
     m_december_at = 0;
-    m_outcomes = new PlayAffect[m_boxes * 10];
+    m_outcomes = new PlayAffect[m_boxes * 100];
     m_outcome_ix = 0;
     //for (uint32_t i = 0; i < m_boxes * 100; i++) 
     //  m_outcomes[i] = NONE;
@@ -125,11 +125,12 @@ namespace dj {
       for (uint32_t y = 0; y < m_sz_y; y++)
         set(pixel_bits, x, y, 0xffffffff);
     */
+    // clear the canvas
     memset(pixel_bits, 0xff, m_sz_x * m_sz_y * sizeof(uint32_t));
 
     Canvas canvas(pixel_bits, m_sz_x, m_sz_y);
     //canvas.usable(0, m_sz_x, 0, m_sz_y - 150);
-    canvas.usable(0, 0, m_sz_x, m_sz_y);
+    canvas.usable(0, 0, m_sz_x - 150, m_sz_y);
     m_view.draw_axis(canvas);
     for ( ; it != m_players.end(); ++it) {
       Player *p = *it;
@@ -157,12 +158,20 @@ namespace dj {
     canvas.set(3,3, 0xffffff1f);
 
     char buf[1280];
-    sprintf(buf, "v%1.3f frames=%d thuds=%d steps=%d paused=%d dec=%d outcomes-in-queue=%dk  ",
-        g_version,
+    sprintf(buf, "v%s frames=%d thuds=%d steps=%d paused=%d dec=%d outcomes-in-queue=%dk  ",
+        g_version.c_str(),
         m_sample_frame_count, m_thuds, m_step, m_pause,
         m_december_at,
         m_outcome_ix / 1000);
     m_display.m_ascii->draw_s(canvas, buf, 50, 3, 0xffffffff);
+
+    // draw the sound graph
+    // FIXME: factor this
+    Canvas sound_canvas(pixel_bits, m_sz_x, m_sz_y);
+    for (uint32_t y = 0; y < m_sz_y; y++) {
+      double v = getBuffer(y * 2) * 20 + getBuffer(y * 2 + 1) * 20;
+      sound_canvas.hline(m_sz_x - 75 - v, m_sz_x - 75 + v, y, 0xffff0000);
+    }
   }
 
   void GameState::drag(device_t x, device_t y, int32_t dx, int32_t dy) {
@@ -214,4 +223,22 @@ namespace dj {
       }
     }
   }
+
+
+  /*
+  inline void setBuffer(uint32_t ix, double v) { 
+    buffer[(buffer_ix + ix) % 44100] += v; 
+  }
+  inline void clearBuffer(uint32_t ix, double v) { 
+    buffer[(buffer_ix + ix) % 44100] = v; 
+  }
+  inline double getBuffer(uint32_t ix) {
+    return buffer[(buffer_ix + ix) % 44100];
+  }
+  inline void advanceBuffer(uint32_t ix) {
+    buffer_ix += ix;
+    if (buffer_ix >= 44100)
+      buffer_ix -= 44100;
+  }
+  */
 } // namespace dj

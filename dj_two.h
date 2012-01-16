@@ -277,7 +277,7 @@ namespace dj {
 
       // stop or bounce if it hits the ground
       if (m_rect.at().y < 0.0) {
-        if (lrand48() % 100 > 25) {
+        if (lrand48() % 100 > 5) {
           m_speed.y = -m_speed.y * (1.0 - drand48() * 0.3);
           ret.m_code = BOUNCE_GROUND;
           ret.m_speed = m_speed.distance();
@@ -388,7 +388,34 @@ namespace dj {
     void setColor(uint32_t v, uint32_t c) { m_colors[v] = c; }
     void redraw(uint32_t* pixel_bits);
     View& view() { return m_view; }
-    void sample(int32_t f) { m_sample_frame_count = f; }
+    void sample(int32_t f) { 
+      m_sample_frame_count = f; 
+      initBuffer();
+    }
+
+    // sound buffer
+    inline void initBuffer() {
+      buffer_ix = 0;
+      for (uint32_t i = 0; i < sizeof(sound_buffer)/sizeof(double); i++)
+        sound_buffer[i] = 0.0;
+    }
+    inline void setSoundSample(uint32_t ix, double value) {
+      sound_buffer[(buffer_ix + ix) % 44100] += value; 
+    }
+    inline void clearBuffer(uint32_t ix, double value) {
+      sound_buffer[(buffer_ix + ix) % 44100] = value;
+    }
+    inline double getBuffer(uint32_t ix) {
+      return sound_buffer[(buffer_ix + ix) % 44100];
+    }
+    inline void advanceBuffer(uint32_t ix) {
+      buffer_ix += ix;
+      if (buffer_ix >= 44100)
+        buffer_ix -= 44100;
+    }
+    // private:
+    double sound_buffer[44100];
+    uint32_t buffer_ix;
 
    private:
     device_t m_sz_x;

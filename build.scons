@@ -7,10 +7,15 @@
 import make_nacl_env
 import nacl_utils
 import os
+from datetime import datetime
+import string
 
 nacl_env = make_nacl_env.NaClEnvironment(use_c_plus_plus_libs=True)
 
-# nacl_env.Append(tools=['nacl_tools'], CXXFLAGS='-DPARANOID=1')
+nacl_env.Append(tools=['nacl_tools'], CXXFLAGS='-DPARANOID=0')
+
+ver=datetime.now().strftime("%Y%m%d-%H%M%S")
+nacl_env.Append(tools=['nacl_tools'], CXXFLAGS='-DVERSION=\\"' + ver + '\\"')
 
 sources = ['dj_two.cc', 'dj_inst2.cpp', 'view.cpp', 'rectangle.cpp']
 nacl_env.AllNaClModules(sources, 'dj_two')

@@ -64,6 +64,7 @@ class DjTwoInstance : public pp::Instance {
   double theta_;
   //uint32_t december_at;
   uint32_t sample_frame_count_;
+  /*
   double buffer[44100];
   uint32_t buffer_ix;
   inline void setBuffer(uint32_t ix, double v) { 
@@ -80,6 +81,7 @@ class DjTwoInstance : public pp::Instance {
     if (buffer_ix >= 44100)
       buffer_ix -= 44100;
   }
+  */
 
  public:
 

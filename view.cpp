@@ -137,7 +137,7 @@ void View::draw(Canvas& canvas, Drawable& gobi) {
   printf("device y range: %d to %d (not y flipped)\n", dv_y0, dv_y1);
 #endif
   uint32_t color = gobi.color();
-  for (int32_t y = dv_y0; y <= dv_y1; y++) {
+  for (int32_t y = dv_y0; y < dv_y1; y++) {
     double ly = device2logical_y(y);
 #if VVERBOSE
     printf("logical y: %3.3f\t", ly);

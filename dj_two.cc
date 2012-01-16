@@ -73,7 +73,6 @@ namespace dj {
     //m_players.push_back(b2);
 
     srand48(1);
-    m_version = 0.123;
     // up to 15k
     m_boxes = 3000;
     for (uint32_t i = 0; i < m_boxes; i++) {
@@ -102,7 +101,7 @@ namespace dj {
     }
     m_thuds = 0;
     m_december_at = 0;
-    m_outcomes = new PlayAffect[m_boxes * 100];
+    m_outcomes = new PlayAffect[m_boxes * 10];
     m_outcome_ix = 0;
     //for (uint32_t i = 0; i < m_boxes * 100; i++) 
     //  m_outcomes[i] = NONE;
@@ -129,7 +128,8 @@ namespace dj {
     memset(pixel_bits, 0xff, m_sz_x * m_sz_y * sizeof(uint32_t));
 
     Canvas canvas(pixel_bits, m_sz_x, m_sz_y);
-    canvas.usable(0, m_sz_x, 0, m_sz_y - 150);
+    //canvas.usable(0, m_sz_x, 0, m_sz_y - 150);
+    canvas.usable(0, 0, m_sz_x, m_sz_y);
     m_view.draw_axis(canvas);
     for ( ; it != m_players.end(); ++it) {
       Player *p = *it;
@@ -158,7 +158,7 @@ namespace dj {
 
     char buf[1280];
     sprintf(buf, "v%1.3f frames=%d thuds=%d steps=%d paused=%d dec=%d outcomes-in-queue=%dk  ",
-        m_version,
+        g_version,
         m_sample_frame_count, m_thuds, m_step, m_pause,
         m_december_at,
         m_outcome_ix / 1000);

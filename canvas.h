@@ -68,8 +68,10 @@ class Canvas {
         *++p0 = color;
 #endif
     } else {
+#if PARANOID
       printf("2/ set overrun x=%d (limit %d) y=%d (limit %d)\n", x1, m_w, y, m_h);
       assert(!"overrun");
+#endif
     }
   }
   inline void vline(int32_t x, int32_t y0, int32_t y1, uint32_t color) {

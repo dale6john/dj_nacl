@@ -10,6 +10,7 @@ import os
 
 nacl_env = make_nacl_env.NaClEnvironment(use_c_plus_plus_libs=True)
 
-sources = ['dj_two.cc', 'dj_inst2.cpp', 'view.cpp', 'rectangle.cpp']
+# nacl_env.Append(tools=['nacl_tools'], CXXFLAGS='-DPARANOID=1')
 
+sources = ['dj_two.cc', 'dj_inst2.cpp', 'view.cpp', 'rectangle.cpp']
 nacl_env.AllNaClModules(sources, 'dj_two')

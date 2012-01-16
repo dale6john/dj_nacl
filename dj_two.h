@@ -408,7 +408,6 @@ namespace dj {
     int32_t m_sample_frame_count;
 
    public:
-    double m_version;
     bool m_sound;
     bool m_pause;
     int32_t m_bang;

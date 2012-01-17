@@ -21,9 +21,7 @@
       updateStatus('SUCCESS');
       DjOneModule.postMessage('hello');
       paintInterval = setInterval(function() {
-          if (stopped == 0) {
-            DjOneModule.postMessage("paint");
-          }
+          DjOneModule.postMessage("paint");
         }, 30);
       clockInterval = setInterval(function() {
           if (stopped == 0) {

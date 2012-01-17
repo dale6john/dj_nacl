@@ -3,9 +3,12 @@
 <head>
   <title>DjOne!</title>
 
+  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
   <script type="text/javascript">
     DjOneModule = null;  // Global application object.
     var paintInterval = null;
+    var clockInterval = null;
+    var stopped = 0;
     statusText = 'NO-STATUS';
 
     // When the NaCl module has loaded, hook up an event listener to handle
@@ -16,8 +19,16 @@
       DjOneModule.addEventListener('message', handleMessage, false);
       updateStatus('SUCCESS');
       DjOneModule.postMessage('hello');
-      paintInterval = setInterval('DjOneModule.postMessage("paint")', 30);
-      paintInterval = setInterval('DjOneModule.postMessage("clock")', 30);
+      paintInterval = setInterval(function() {
+          if (stopped == 0) {
+            DjOneModule.postMessage("paint");
+          }
+        }, 30);
+      clockInterval = setInterval(function() {
+          if (stopped == 0) {
+            DjOneModule.postMessage("clock");
+          }
+        }, 30);
     }
 
     // The 'message' event handler.  This handler is fired when the NaCl module
@@ -63,19 +74,41 @@
         statusField.innerHTML = statusText;
       }
     }
+
+    $(function() {
+      $('#pause').click(function(event) {
+        if (stopped == 1) {
+          stopped = 0;
+          $('#pause').html('Pause');
+        } else {
+          stopped = 1;
+          $('#pause').html('Restart');
+        }
+      });
+    });
   </script>
 </head>
-<body onload="pageDidLoad()">
 
-<h2>Native Client Module DjTwo (!)</h1>
-<p>
-Need to be running a recent chrome, and enter "about:flags"
-<a href='http://code.google.com/chrome/nativeclient/docs/running.html'>(How to do this)</a>
-in the address bar, find "native client" about 10 items down, and <em>enable</em> it.
-Then restart your browser.
-Left - click - and drag to move the screen.  Right click to zoom out,  Shift - Right click to zoom in.
-click on the animated object, and hit any letter to 'shuffle'
-</p>
+<body onload="pageDidLoad()">
+<h2>Native Client Module DjTwo (!)</h2>
+<table>
+  <tr>
+    <td width='50%'>
+      Need to be running a recent chrome, and enter "about:flags"
+      <a href='http://code.google.com/chrome/nativeclient/docs/running.html'>(How to do this)</a>
+      in the address bar, find "native client" about 10 items down, and
+      <em>enable</em> it.  Then restart your browser.  Left - click - and drag
+      to move the screen.  Right click to zoom out,  Shift - Right click to
+      zoom in.  click on the animated object, and hit any letter to 'shuffle'
+    </td>
+    <td>
+      <button type="button" id="pause">Pause</input>
+    </td>
+    <td>
+      <div id="status_field">NO-STATUS</div>
+    </td>
+  </tr>
+</table>
 
   <!-- Load the published .nexe.  This includes the 'nacl' attribute which
   shows how to load multi-architecture modules.  Each entry in the "nexes"
@@ -113,7 +146,5 @@ click on the animated object, and hit any letter to 'shuffle'
   </form>
 </p>
 
-<h2>Status</h2>
-<div id="status_field">NO-STATUS</div>
 </body>
 </html>

@@ -62,26 +62,7 @@ class DjTwoInstance : public pp::Instance {
   static void SoundCallback(void * samples, uint32_t buffer_size, void* data);
   pp::Audio audio_;
   double theta_;
-  //uint32_t december_at;
   uint32_t sample_frame_count_;
-  /*
-  double buffer[44100];
-  uint32_t buffer_ix;
-  inline void setBuffer(uint32_t ix, double v) { 
-    buffer[(buffer_ix + ix) % 44100] += v; 
-  }
-  inline void clearBuffer(uint32_t ix, double v) { 
-    buffer[(buffer_ix + ix) % 44100] = v; 
-  }
-  inline double getBuffer(uint32_t ix) {
-    return buffer[(buffer_ix + ix) % 44100];
-  }
-  inline void advanceBuffer(uint32_t ix) {
-    buffer_ix += ix;
-    if (buffer_ix >= 44100)
-      buffer_ix -= 44100;
-  }
-  */
 
  public:
 

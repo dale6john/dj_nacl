@@ -1,7 +1,7 @@
 #include "dj_inst2.h"
 
 #include <limits>
-//#include "duppy.h"
+#include "duppy.h"
 //#include "dec.10s.48.h"
 
 namespace dj {
@@ -179,24 +179,24 @@ namespace dj {
     m_board = new GameState(1200, 800, 1/1.0);
     //m_board = new GameState(800, 600, 1/1.0);
     uint32_t kSampleFrameCount = 2048;
-    sample_frame_count_ = pp::AudioConfig::RecommendSampleFrameCount(PP_AUDIOSAMPLERATE_44100,
-         kSampleFrameCount);
-    pp::AudioConfig audio_config = pp::AudioConfig(this, PP_AUDIOSAMPLERATE_44100,
-         sample_frame_count_);
+    sample_frame_count_ = pp::AudioConfig::RecommendSampleFrameCount(
+          PP_AUDIOSAMPLERATE_44100, kSampleFrameCount);
+    pp::AudioConfig audio_config = pp::AudioConfig(
+          this, PP_AUDIOSAMPLERATE_44100, sample_frame_count_);
+
+    assert(!audio_config.is_null());
 
     m_board->sample(sample_frame_count_);
 
     audio_ = pp::Audio(this, audio_config, SoundCallback, this);
 
-    getBoard()->m_december_at = 0;
-
-    getBoard()->initBuffer();// sound buffer
+    getBoard()->initSoundBuffer();
 
     //m_board = new GameState(800, 600, 1/1.5);
     pthread_create(&compute_pi_thread_, NULL, RunBoard, this);
-    //return audio_.StartPlayback();
-    audio_.StartPlayback();
-    return true;
+    return audio_.StartPlayback();
+    //audio_.StartPlayback();
+    //return true;
   }
 
   uint32_t* DjTwoInstance::LockPixels() {
@@ -311,27 +311,17 @@ namespace dj {
 
   // static
   void DjTwoInstance::SoundCallback(void *samples, uint32_t buffer_size, void* data) {
-    DjTwoInstance* dj = static_cast<DjTwoInstance*>(data);
+    DjTwoInstance* dj = reinterpret_cast<DjTwoInstance*>(data);
     //double freq = 440; // A above middle C
     int channels = 2;  // stereo
     double master_volume = 0.0;
     if (dj->getBoard()->m_sound)
-      master_volume = 0.3;
+      master_volume = 0.2;
 
     //const double delta = (M_PI * 2.0) * freq / PP_AUDIOSAMPLERATE_44100;
     const int16_t max_int16 = std::numeric_limits<int16_t>::max();
     int16_t* buff = reinterpret_cast<int16_t*>(samples);
     assert(buffer_size >= sizeof(*buff) * channels * dj->sample_frame_count_);
-
-    //double * buffer = dj->buffer;
-    //uint32_t & bix = dj->buffer_ix;
-
-    // 2048 frames per channel -- 44kHz sample rate
-    // 46ms of sound, 21 buffers per second
-    // 10KHz highest audible pitch (15 to 20 with younger people)
-    // 20 Hz lowest audible pitch
-    // a wavelength should be between 4 and 2048 samples
-    // upper encoding limit is 512 serial events
 
 #if 1
     // bang noise first
@@ -353,7 +343,6 @@ namespace dj {
           if (ix > 44100 / 20)
             bang_volume *= 0.9999;
           //buffer[(bix + ix) % 44100] += v * bang_volume + 0.0 * sin(theta);
-          //dj->setBuffer(ix, v * bang_volume + 0.0 * sin(theta));
           dj->getBoard()->setSoundSample(ix, v * bang_volume + 0.0 * sin(theta));
           ix++;
           theta += M_PI / 180 * 30;
@@ -363,28 +352,29 @@ namespace dj {
     }
 #endif
 
-#if 0
+#if 1
     // background music/sound
     // extra '0' at the end :( so subtract 1 still use '<'
     uint32_t num_samples = sizeof(wave)/sizeof(int16_t) - 1;
     for (uint32_t j = 0; j < 2048; j++) {
       double volume = 0.5;
-      if (dj->getBoard()->m_december_at < 1024 || dj->getBoard()->m_december_at > num_samples - 1044)
+      if (dj->getBoard()->m_music_sample_ix < 1024 || dj->getBoard()->m_music_sample_ix > num_samples - 1044)
         volume = 0.0;
-      if (dj->getBoard()->m_december_at >= num_samples)
-        dj->getBoard()->m_december_at = 0;
-      dj->setBuffer(j, volume * (wave[dj->getBoard()->m_december_at++]) / 32000);
-      dj->getBoard()->m_december_at++; // ignore one channel
+      if (dj->getBoard()->m_music_sample_ix >= num_samples)
+        dj->getBoard()->m_music_sample_ix = 0;
+      double volume2 = (wave[dj->getBoard()->m_music_sample_ix++]) / 32000.0;
+      volume2 *= volume;
+      dj->getBoard()->setSoundSample(j, volume2);
+      dj->getBoard()->m_music_sample_ix++; // ignore one channel
     }
 #endif
 
-#if 1
+#if 0
     if (0) {
       double theta = 0;
       double delta = 30 * M_PI / 180;
       uint32_t at = 0;
       for (uint32_t j = 0; j < 2000; j++) {
-        //dj->setBuffer(at + j, 0.3 * sin(theta));
         dj->getBoard()->setSoundSample(at + j, 0.3 * sin(theta));
         theta += delta;
         if (theta > 2 * M_PI) theta -= 2 * M_PI;
@@ -418,7 +408,6 @@ namespace dj {
                   v = v_curr + v_slope * i * 2;
                 if (ix > 44100 / 40)
                   thud_volume *= 0.9999;
-                //dj->setBuffer(at + ix, v * thud_volume);
                 dj->getBoard()->setSoundSample(at + ix, v * thud_volume);
                 ix++;
               }
@@ -437,10 +426,8 @@ namespace dj {
             uint32_t at = lrand48() % 2000;
             if (speed > 0.5) {
               for (uint32_t j = 0; j < floor(speed * 100); j++) {
-                //buffer[bix + at + j] += sin(theta);
                 volume2 = log(speed)/log(5);
                 //if (volume2 < 1.0) volume2 = 1.0;
-                //dj->setBuffer(at + j, volume * volume2 * sin(theta));
                 dj->getBoard()->setSoundSample(at + j, volume * volume2 * sin(theta));
                 theta += delta;
                 if (theta > 2 * M_PI) theta -= 2 * M_PI;
@@ -459,8 +446,6 @@ namespace dj {
             uint32_t at = lrand48() % 2000;
             // FIXME: this is too slow
             for (uint32_t j = 0; j < 2000; j++) {
-              //buffer[bix + at + j] += sin(theta);
-              //dj->setBuffer(at + j, 0.01 * sin(theta));
               dj->getBoard()->setSoundSample(at + j, 0.01 * sin(theta));
               theta += delta;
               if (theta > 2 * M_PI) theta -= 2 * M_PI;
@@ -477,8 +462,6 @@ namespace dj {
             double delta = 30 * M_PI / 180;
             uint32_t at = lrand48() % 2000;
             for (uint32_t j = 0; j < 2000; j++) {
-              //buffer[bix + at + j] += sin(theta);
-              //dj->setBuffer(at + j, 0.2 * sin(theta));
               dj->getBoard()->setSoundSample(at + j, 0.2 * sin(theta));
               theta += delta;
               if (theta > 2 * M_PI) theta -= 2 * M_PI;
@@ -504,7 +487,6 @@ namespace dj {
                   v = v_curr + v_slope * i * 2;
                 if (ix > 44100 / 40)
                   push_volume *= 0.9999;
-                //dj->setBuffer(at + ix, v * push_volume);
                 dj->getBoard()->setSoundSample(at + ix, v * push_volume);
                 ix++;
               }
@@ -516,21 +498,25 @@ namespace dj {
           break;
       }
     }
-    dj->getBoard()->clearOutcomes();
 #endif
+    dj->getBoard()->clearOutcomes();
 
     // "mix"
     for (uint32_t ix = 0; ix < 2048; ix++) {
-      //double v = buffer[(bix + ix) % 44100] / 2.0;
       double v = dj->getBoard()->getBuffer(ix) / 2.0;
-      //buffer[(bix + ix) % 44100] = 0.0;
       dj->getBoard()->clearBuffer(ix, 0.0);
-      if (v > 1.0) v = 1.0;
-      int16_t scaled_value = static_cast<int16_t>(v * max_int16 * master_volume);
+      int16_t sign = (v > 0) ? 1 : -1;
+      v = (v > 0) ? v : -v;
+      if (v > 0.99) v = 0.99;
+      //double v2 = log(1 + v)/log(500) * max_int16;
+      double v2 = double(v) * double(max_int16) * double(sign);
+      v2 *= master_volume;
+      int16_t scaled_value = static_cast<int16_t>(v2);
       *buff++ = scaled_value; // left
       *buff++ = scaled_value; // right
+
+      dj->getBoard()->addPlayedBuffer(scaled_value);
     }
-    //dj->advanceBuffer(2048);
     dj->getBoard()->advanceBuffer(2048);
 
   }

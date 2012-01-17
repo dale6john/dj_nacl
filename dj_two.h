@@ -389,15 +389,35 @@ namespace dj {
     void redraw(uint32_t* pixel_bits);
     View& view() { return m_view; }
     void sample(int32_t f) { 
-      m_sample_frame_count = f; 
-      initBuffer();
+      m_sample_frame_count = f; // use this instead of 2048
+      initSoundBuffer();
     }
 
-    // sound buffer
-    inline void initBuffer() {
+    // mixing sound buffer
+    //
+    // 2048 frames per channel -- 44kHz sample rate
+    // 46ms of sound, 21 buffers per second
+    // 10KHz highest audible pitch (15 to 20 with younger people)
+    // 20 Hz lowest audible pitch
+    // a wavelength should be between 4 and 2048 samples
+    // upper encoding limit is 512 serial events
+
+    //
+    // 2048 frames per channel -- 44kHz sample rate
+    // 46ms of sound, 21 buffers per second
+    // 10KHz highest audible pitch (15 to 20 with younger people)
+    // 20 Hz lowest audible pitch
+    // a wavelength should be between 4 and 2048 samples
+    // upper encoding limit is 512 serial events
+
+    inline void initSoundBuffer() {
       buffer_ix = 0;
+      m_music_sample_ix = 0;
+      out_buffer_ix = 0;
       for (uint32_t i = 0; i < sizeof(sound_buffer)/sizeof(double); i++)
         sound_buffer[i] = 0.0;
+      for (uint32_t i = 0; i < sizeof(out_sound_buffer)/sizeof(int16_t); i++)
+        out_sound_buffer[i] = 0;
     }
     inline void setSoundSample(uint32_t ix, double value) {
       sound_buffer[(buffer_ix + ix) % 44100] += value; 
@@ -413,9 +433,25 @@ namespace dj {
       if (buffer_ix >= 44100)
         buffer_ix -= 44100;
     }
+
+    inline void addPlayedBuffer(int16_t v) {
+      out_sound_buffer[out_buffer_ix % 44100] = v;
+      out_buffer_ix++;
+      if (out_buffer_ix > 44100)
+        out_buffer_ix = out_buffer_ix % 44100;
+    }
+    inline int16_t getPlayedBuffer(uint32_t ix) {
+      return out_sound_buffer[(out_buffer_ix + 44100 - ix) % 44100];
+    }
+
     // private:
     double sound_buffer[44100];
     uint32_t buffer_ix;
+    uint32_t m_music_sample_ix;
+
+    // already played sound buffer
+    int16_t out_sound_buffer[44100];
+    uint32_t out_buffer_ix;
 
    private:
     device_t m_sz_x;
@@ -436,7 +472,6 @@ namespace dj {
 
    public:
     bool m_sound;
-    bool m_pause;
     int32_t m_bang;
     int32_t m_thuds;
 
@@ -444,7 +479,6 @@ namespace dj {
     void clearOutcomes();
     uint32_t m_outcome_ix;
     PlayAffect* m_outcomes; // FIXME: memory leak
-    uint32_t m_december_at;
 
   };
 

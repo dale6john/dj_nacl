@@ -59,7 +59,7 @@ namespace dj {
           //m_numbers(numbers, 12, 16),
           m_ascii(ascii, 10, 20),
           m_display(&m_view, &m_ascii),
-          m_step(0), m_sound(false), m_pause(false),
+          m_step(0), m_sound(false),
           m_bang(0)
   {
     // constructed with physical dimensions and scale 1
@@ -74,7 +74,7 @@ namespace dj {
 
     srand48(1);
     // up to 15k
-    m_boxes = 3000;
+    m_boxes = 300;
     for (uint32_t i = 0; i < m_boxes; i++) {
       double x = 1.0 + drand48() * 149.0;
       double y = 1.0 + drand48() * 149.0;
@@ -100,7 +100,7 @@ namespace dj {
       m_players.push_back(box);
     }
     m_thuds = 0;
-    m_december_at = 0;
+    m_music_sample_ix = 0;
     m_outcomes = new PlayAffect[m_boxes * 100];
     m_outcome_ix = 0;
     //for (uint32_t i = 0; i < m_boxes * 100; i++) 
@@ -158,10 +158,11 @@ namespace dj {
     canvas.set(3,3, 0xffffff1f);
 
     char buf[1280];
-    sprintf(buf, "v%s frames=%d thuds=%d steps=%d paused=%d dec=%d outcomes-in-queue=%dk  ",
+    sprintf(buf, "v%s frames=%d thuds=%d steps=%d dec=%d sound sample=%d  outcomes-in-queue=%dk  ",
         g_version.c_str(),
-        m_sample_frame_count, m_thuds, m_step, m_pause,
-        m_december_at,
+        m_sample_frame_count, m_thuds, m_step,
+        m_music_sample_ix,
+        getPlayedBuffer(1),
         m_outcome_ix / 1000);
     m_display.m_ascii->draw_s(canvas, buf, 50, 3, 0xffffffff);
 
@@ -169,8 +170,15 @@ namespace dj {
     // FIXME: factor this
     Canvas sound_canvas(pixel_bits, m_sz_x, m_sz_y);
     for (uint32_t y = 0; y < m_sz_y; y++) {
-      double v = getBuffer(y * 2) * 20 + getBuffer(y * 2 + 1) * 20;
-      sound_canvas.hline(m_sz_x - 75 - v, m_sz_x - 75 + v, y, 0xffff0000);
+      //double v = getBuffer(y * 2) + getBuffer(y * 2 + 1);
+      int16_t v2 = getPlayedBuffer(y * 2);// + getPlayedBuffer(y * 2 + 1);
+      double v = double(v2) / 32676.0; // -1.0 to 1.0
+      uint32_t center = m_sz_x - 75;;
+      if (v > 0) { 
+        sound_canvas.hline(center, center + v * 75, y, 0xffff0000);
+      } else {
+        sound_canvas.hline(center + v * 75, center, y, 0xffff0000);
+      }
     }
   }
 
@@ -184,12 +192,8 @@ namespace dj {
   void GameState::key(int k) {
     std::vector<Player*>::iterator it;
     it = m_players.begin();
-    if (k == 'p' || k == 'P') {
-      m_pause = !m_pause;
-    } else {
-      for ( ; it != m_players.end(); ++it) {
-        (*it)->click();
-      }
+    for ( ; it != m_players.end(); ++it) {
+      (*it)->click();
     }
   }
   void GameState::click(device_t x, device_t y) {
@@ -209,7 +213,7 @@ namespace dj {
   }
 
   void GameState::step() {
-    if (m_step++ > 50 && !m_pause) {
+    if (m_step++ > 50) {
       m_sound = true;
       m_bang++;
       std::vector<Player*>::iterator it;

@@ -60,7 +60,7 @@ namespace dj {
           m_ascii(ascii, 10, 20),
           m_display(&m_view, &m_ascii),
           m_step(0), m_sound(false),
-          m_bang(0)
+          m_bang(0), m_thuds(0), m_quiet(false)
   {
     // constructed with physical dimensions and scale 1
 
@@ -74,7 +74,7 @@ namespace dj {
 
     srand48(1);
     // up to 15k
-    m_boxes = 300;
+    m_boxes = 3000;
     for (uint32_t i = 0; i < m_boxes; i++) {
       double x = 1.0 + drand48() * 149.0;
       double y = 1.0 + drand48() * 149.0;
@@ -99,10 +99,10 @@ namespace dj {
       }
       m_players.push_back(box);
     }
-    m_thuds = 0;
     m_music_sample_ix = 0;
     m_outcomes = new PlayAffect[m_boxes * 100];
     m_outcome_ix = 0;
+    m_debug[0] = '\0';
     //for (uint32_t i = 0; i < m_boxes * 100; i++) 
     //  m_outcomes[i] = NONE;
 
@@ -158,12 +158,14 @@ namespace dj {
     canvas.set(3,3, 0xffffff1f);
 
     char buf[1280];
-    sprintf(buf, "v%s frames=%d thuds=%d steps=%d dec=%d sound sample=%d  outcomes-in-queue=%dk  ",
-        g_version.c_str(),
-        m_sample_frame_count, m_thuds, m_step,
-        m_music_sample_ix,
-        getPlayedBuffer(1),
-        m_outcome_ix / 1000);
+    sprintf(buf, "v%s thuds=%d steps=%d dec=%6d sound sample=%5d oc-inq=%2dk (%s)",
+      &g_version.c_str()[5],
+      m_thuds, m_step,
+      m_music_sample_ix,
+      getPlayedBuffer(1),
+      m_outcome_ix / 1000,
+      m_debug
+      );
     m_display.m_ascii->draw_s(canvas, buf, 50, 3, 0xffffffff);
 
     // draw the sound graph
@@ -204,6 +206,9 @@ namespace dj {
       (*it)->click();
     }
     */
+  }
+  void GameState::quiet() {
+    m_quiet = !m_quiet;
   }
   void GameState::getCenter(double& x, double& y) {
     m_view.getCenter(x, y);

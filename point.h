@@ -20,6 +20,11 @@ class Point {
   inline double distance() {
     return sqrt(x * x + y * y);
   }
+  inline double distance(Point& p) {
+    double dx = p.x - x;
+    double dy = p.y - y;
+    return sqrt(dx * dx - dy * dy);
+  }
   inline void unit() {
     scale(1.0/distance());
   }

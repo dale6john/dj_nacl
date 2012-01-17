@@ -9,6 +9,7 @@
     var paintInterval = null;
     var clockInterval = null;
     var stopped = 0;
+    var quiet = 1;
     statusText = 'NO-STATUS';
 
     // When the NaCl module has loaded, hook up an event listener to handle
@@ -82,10 +83,22 @@
           $('#pause').html('Pause');
         } else {
           stopped = 1;
-          $('#pause').html('Restart');
+          $('#pause').html('Continue');
         }
       });
+      $('#quiet').click(function(event) {
+        // DjOneModule = document.getElementById('dj_two');
+        if (quiet == 1) {
+          quiet = 0;
+          $('#quiet').html('Quiet');
+        } else {
+          quiet = 1;
+          $('#quiet').html('Noisy');
+        }
+        DjOneModule.postMessage("quiet");
+      });
     });
+
   </script>
 </head>
 
@@ -93,7 +106,7 @@
 <h2>Native Client Module DjTwo (!)</h2>
 <table>
   <tr>
-    <td width='50%'>
+    <td width='85%'>
       Need to be running a recent chrome, and enter "about:flags"
       <a href='http://code.google.com/chrome/nativeclient/docs/running.html'>(How to do this)</a>
       in the address bar, find "native client" about 10 items down, and
@@ -101,10 +114,13 @@
       to move the screen.  Right click to zoom out,  Shift - Right click to
       zoom in.  click on the animated object, and hit any letter to 'shuffle'
     </td>
-    <td>
+    <td width='5%'>
       <button type="button" id="pause">Pause</input>
     </td>
-    <td>
+    <td width='5%'>
+      <button type="button" id="quiet">Noisy</input>
+    </td>
+    <td width='5%'>
       <div id="status_field">NO-STATUS</div>
     </td>
   </tr>

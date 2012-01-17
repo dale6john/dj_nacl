@@ -64,6 +64,71 @@ class DjTwoInstance : public pp::Instance {
   double theta_;
   uint32_t sample_frame_count_;
 
+  // code to cache sounds we get
+  static const uint32_t sound_cache_items = 100;
+  static const uint32_t sound_cache_each = 10000; // about 250 ms - mono
+  double sound_cache[sound_cache_items * sound_cache_each];
+  uint32_t sound_cache_sz[sound_cache_items];
+  uint32_t cache_hit;
+  uint32_t cache_miss;
+  uint32_t cache_tries;
+  void init_sound() {
+    for (uint32_t i = 0; i < sound_cache_items; i++) {
+      for (uint32_t n = 0; n < sound_cache_each; n++) {
+        sound_cache[i * sound_cache_each + n] = 0.0; 
+      }
+      sound_cache_sz[i] = 0;
+    }
+    cache_hit = cache_miss = cache_tries = 0;
+  }
+  void add_sound(play_t outcome, double speed, GameState* board) {
+    if (outcome == BOUNCE_GROUND) {
+      double theta = 0.0;
+      double delta = 30 * M_PI / 180;
+      double volume2 = log(speed)/log(5);
+      uint32_t at = lrand48() % 2000;
+
+      int32_t six = uint32_t(floor(speed * 10));
+      if (six >= int32_t(sound_cache_items))
+        six = sound_cache_items - 1;
+      double *cache = NULL;
+      bool valid_cache = true;
+      bool have_cache = valid_cache && (sound_cache_sz[six] > 0);
+      if (valid_cache) 
+        cache = &sound_cache[six * sound_cache_each];
+      cache_tries++;
+
+      if (!have_cache) {
+        cache_miss++;
+        double volume = 0.0;
+        for (uint32_t j = 0; j < floor(speed * 100); j++) {
+          if (volume < 0.2)
+            volume += 0.004;
+          double sample = volume * volume2 * sin(theta);
+          board->setSoundSample(at + j, sample);
+          if (valid_cache) {
+            cache[j] = sample;
+            sound_cache_sz[six]++;
+          }
+
+          theta += delta;
+          if (theta > 2 * M_PI) theta -= 2 * M_PI;
+          if (delta > 15 * M_PI / 180)
+            delta *= 0.999;
+          if (volume2 > 0.2)
+            volume2 *= 0.99;
+        }
+      } else {
+        // apply cache
+        cache_hit++;
+        for (uint32_t j = 0; j < sound_cache_sz[six]; j++) {
+          double sample = cache[j];
+          board->setSoundSample(at + j, sample);
+        }
+      }
+    }
+  }
+
  public:
 
   // Start up the ComputePi() thread.
@@ -95,6 +160,7 @@ class DjTwoInstance : public pp::Instance {
   // method by posting the value back to the browser.
   void Paint();
   void Clock();
+  void Quiet();
   void Drag(uint32_t from_x, uint32_t from_y, int32_t dx, int32_t dy);
   void Click(uint32_t from_x, uint32_t from_y);
   void ZoomIn(uint32_t from_x, uint32_t from_y);

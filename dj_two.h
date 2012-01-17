@@ -42,6 +42,7 @@ namespace dj {
    public:
     play_t m_code;
     double m_speed;
+    Point m_at; // this is logical units
   };
 
 #if 0
@@ -202,6 +203,7 @@ namespace dj {
       if (++m_step >= m_steps)
         m_step = 0;
       ret.m_code = NONE;
+      ret.m_at.assign(m_x, m_y);
     }
     virtual void click() {}
 
@@ -377,6 +379,7 @@ namespace dj {
     void drag(device_t x, device_t y, int32_t dx, int32_t dy);
     void zoom(device_t x, device_t y, double scale = 2.0);
     void click(device_t x, device_t y);
+    void quiet();
     void key(int k);
     void getCenter(double& x, double& y);
     void step();
@@ -391,6 +394,9 @@ namespace dj {
     void sample(int32_t f) { 
       m_sample_frame_count = f; // use this instead of 2048
       initSoundBuffer();
+    }
+    void debug(char *s) {
+      strcpy(m_debug, s);
     }
 
     // mixing sound buffer
@@ -470,10 +476,14 @@ namespace dj {
     uint32_t m_step;
     int32_t m_sample_frame_count;
 
+    char m_debug[10240];
+
    public:
     bool m_sound;
     int32_t m_bang;
     int32_t m_thuds;
+    bool isQuiet() { return m_quiet; }
+    bool m_quiet;
 
     uint32_t m_boxes;
     void clearOutcomes();

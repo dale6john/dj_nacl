@@ -22,6 +22,9 @@ namespace dj {
     if (message == kClockMethodId) {
       Clock();
     }
+    if (message == "quiet") {
+      Quiet();
+    }
   }
 
   bool DjTwoInstance::HandleInputEvent(const pp::InputEvent &event) {
@@ -192,6 +195,8 @@ namespace dj {
 
     getBoard()->initSoundBuffer();
 
+    this->init_sound(); // FIXME: sound cache belongs here??
+
     //m_board = new GameState(800, 600, 1/1.5);
     pthread_create(&compute_pi_thread_, NULL, RunBoard, this);
     return audio_.StartPlayback();
@@ -275,6 +280,10 @@ namespace dj {
     m_board->addTurns(1);
   }
 
+  void DjTwoInstance::Quiet() {
+    m_board->quiet();
+  }
+
   void DjTwoInstance::Click(uint32_t from_x, uint32_t from_y) {
     //
     M m(this);
@@ -316,7 +325,7 @@ namespace dj {
     int channels = 2;  // stereo
     double master_volume = 0.0;
     if (dj->getBoard()->m_sound)
-      master_volume = 0.2;
+      master_volume = 0.9;
 
     //const double delta = (M_PI * 2.0) * freq / PP_AUDIOSAMPLERATE_44100;
     const int16_t max_int16 = std::numeric_limits<int16_t>::max();
@@ -353,21 +362,26 @@ namespace dj {
 #endif
 
 #if 1
-    // background music/sound
-    // extra '0' at the end :( so subtract 1 still use '<'
-    uint32_t num_samples = sizeof(wave)/sizeof(int16_t) - 1;
-    for (uint32_t j = 0; j < 2048; j++) {
-      double volume = 0.5;
-      if (dj->getBoard()->m_music_sample_ix < 1024 || dj->getBoard()->m_music_sample_ix > num_samples - 1044)
-        volume = 0.0;
-      if (dj->getBoard()->m_music_sample_ix >= num_samples)
-        dj->getBoard()->m_music_sample_ix = 0;
-      double volume2 = (wave[dj->getBoard()->m_music_sample_ix++]) / 32000.0;
-      volume2 *= volume;
-      dj->getBoard()->setSoundSample(j, volume2);
-      dj->getBoard()->m_music_sample_ix++; // ignore one channel
+    // FIXME: figure out where the is_quiet boolean belongs
+    if (dj->getBoard()->isQuiet()) {
+      // background music/sound
+      // extra '0' at the end :( so subtract 1 still use '<'
+      uint32_t num_samples = sizeof(wave)/sizeof(int16_t) - 1;
+      for (uint32_t j = 0; j < 2048; j++) {
+        double volume = 0.5;
+        if (dj->getBoard()->m_music_sample_ix < 1024 || dj->getBoard()->m_music_sample_ix > num_samples - 1044)
+          volume = 0.0;
+        if (dj->getBoard()->m_music_sample_ix >= num_samples)
+          dj->getBoard()->m_music_sample_ix = 0;
+        double volume2 = (wave[dj->getBoard()->m_music_sample_ix++]) / 32000.0;
+        volume2 *= volume;
+        dj->getBoard()->setSoundSample(j, volume2);
+        dj->getBoard()->m_music_sample_ix++; // ignore one channel
+      }
     }
 #endif
+
+    Point my_ear(20,10);
 
 #if 0
     if (0) {
@@ -385,9 +399,11 @@ namespace dj {
 #if 1
     // apply the 'outcomes'
     PlayAffect * outcomes = dj->getBoard()->m_outcomes;
+    int32_t limit = 4000;
     for (uint32_t i = 0; i < dj->getBoard()->m_outcome_ix; i++) {
       play_t outcome = outcomes[i].m_code;
       double speed = outcomes[i].m_speed;
+      Point outcome_at = outcomes[i].m_at;
       switch(outcome) {
         case NONE:
           break;
@@ -419,20 +435,10 @@ namespace dj {
           {
             // from 10kHz to 1kHz
             // 4 samples to 40 samples
-            double theta = 0;
-            double delta = 30 * M_PI / 180;
-            double volume = 0.2;
-            double volume2 = 1.0;
-            uint32_t at = lrand48() % 2000;
             if (speed > 0.5) {
-              for (uint32_t j = 0; j < floor(speed * 100); j++) {
-                volume2 = log(speed)/log(5);
-                //if (volume2 < 1.0) volume2 = 1.0;
-                dj->getBoard()->setSoundSample(at + j, volume * volume2 * sin(theta));
-                theta += delta;
-                if (theta > 2 * M_PI) theta -= 2 * M_PI;
-                if (delta > 15 * M_PI / 180)
-                  delta *= 0.999;
+              if (limit >= 0) {
+                limit--;
+                dj->add_sound(outcome, speed, dj->getBoard());
               }
             }
           }
@@ -500,8 +506,13 @@ namespace dj {
     }
 #endif
     dj->getBoard()->clearOutcomes();
+    char buf[100];
+    sprintf(buf, "h/m/t %d/%d/%d", dj->cache_hit, dj->cache_miss, dj->cache_tries);
+    dj->getBoard()->debug(buf);
 
+    //
     // "mix"
+    //
     for (uint32_t ix = 0; ix < 2048; ix++) {
       double v = dj->getBoard()->getBuffer(ix) / 2.0;
       dj->getBoard()->clearBuffer(ix, 0.0);

@@ -1,7 +1,7 @@
 #ifndef __types_h__
 #define __types_h__
 
-//#define VERBOSE 0
+//#define VERBOSE 1
 #define VVERBOSE 0
 //#define PARANOID 1
 //#define VERSION 2.129

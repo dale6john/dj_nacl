@@ -11,10 +11,7 @@ namespace dj {
     std::string message = var_message.AsString();
     pp::Var var_reply;
     if (message == kHelloString) {
-      M m(this);
-      sprintf(m.buf, "_Reply: (%sb) %d %d ", kVersion, m_count, m_mc++);
-      RequestInputEvents(PP_INPUTEVENT_CLASS_KEYBOARD | PP_INPUTEVENT_CLASS_MOUSE);
-      RequestFilteringInputEvents(PP_INPUTEVENT_CLASS_KEYBOARD);
+      Hello();
     }
     if (message == kPaintMethodId) {
       Paint();
@@ -179,7 +176,7 @@ namespace dj {
   }
 
   bool DjTwoInstance::Init(uint32_t argc, const char* argn[], const char* argv[]) {
-    m_board = new GameState(1200, 800, 1/1.0);
+    m_board = new GameState(1200, 700, 1/1.0);
     //m_board = new GameState(800, 600, 1/1.0);
     uint32_t kSampleFrameCount = 2048;
     sample_frame_count_ = pp::AudioConfig::RecommendSampleFrameCount(
@@ -238,6 +235,11 @@ namespace dj {
       return;
     delete graphics_2d_context_;
     graphics_2d_context_ = NULL;
+  }
+
+  void DjTwoInstance::Hello() {
+    RequestInputEvents(PP_INPUTEVENT_CLASS_KEYBOARD | PP_INPUTEVENT_CLASS_MOUSE);
+    RequestFilteringInputEvents(PP_INPUTEVENT_CLASS_KEYBOARD);
   }
 
   void DjTwoInstance::Paint() {

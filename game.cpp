@@ -1,24 +1,5 @@
 /// @file dj_one.cc
-/// This example demonstrates loading, running and scripting a very simple NaCl
-/// module.  To load the NaCl module, the browser first looks for the
-/// CreateModule() factory method (at the end of this file).  It calls
-/// CreateModule() once to load the module code from your .nexe.  After the
-/// .nexe code is loaded, CreateModule() is not called again.
 ///
-/// Once the .nexe code is loaded, the browser than calls the CreateInstance()
-/// method on the object returned by CreateModule().  It calls CreateInstance()
-/// each time it encounters an <embed> tag that references your NaCl module.
-///
-/// The browser can talk to your NaCl module via the postMessage() Javascript
-/// function.  When you call postMessage() on your NaCl module from the browser,
-/// this becomes a call to the HandleMessage() method of your pp::Instance
-/// subclass.  You can send messages back to the browser by calling the
-/// PostMessage() method on your pp::Instance.  Note that these two methods
-/// (postMessage() in Javascript and PostMessage() in C++) are asynchronous.
-/// This means they return immediately - there is no waiting for the message
-/// to be handled.  This has implications in your program design, particularly
-/// when mutating property values that are exposed to both the browser and the
-/// NaCl module.
 
 #include <cstdio>
 #include <string>
@@ -27,51 +8,27 @@
 #include <stdlib.h>
 #include <cassert>
 #include <cmath>
-/*
-#include "ppapi/cpp/completion_callback.h"
-#include "ppapi/cpp/instance.h"
-#include "ppapi/cpp/module.h"
-#include "ppapi/cpp/var.h"
-#include "ppapi/cpp/graphics_2d.h"
-#include "ppapi/cpp/image_data.h"
-#include "ppapi/cpp/rect.h"
-#include "ppapi/cpp/size.h"
-#include "ppapi/cpp/core.h"
-#include "ppapi/cpp/input_event.h"
-*/
 
-#include "dj_two.h"
+#include "player.h"
+#include "game.h"
 
-//#include "numbers.h"
 #include "ascii.h"
-/*
-#include "ladybug.h"
-#include "flower.h"
-#include "clover.h"
-*/
-
 
 namespace dj {
 
   GameState::GameState(device_t x, device_t y, double scale)
         : m_sz_x(x), m_sz_y(y), m_scale(scale), m_seed(1),
-          m_view(x, y, scale),
+          m_canvas_set(3),
+          m_canvas(NULL, x, y),
+          m_sound_canvas(NULL, x, y),
+          m_text_canvas(NULL, x, y),
+          m_view(m_canvas, scale),
           //m_numbers(numbers, 12, 16),
           m_ascii(ascii, 10, 20),
           m_display(&m_view, &m_ascii),
           m_step(0), m_sound(false),
           m_bang(0), m_thuds(0), m_quiet(false)
   {
-    // constructed with physical dimensions and scale 1
-
-    //Player *f  = new Flower(300, 150);
-    //Player *b1 = new Ladybug(x - 50, y - 60, 15.0/360.0 * 3.14159*2.0, 0.5);
-    //Player *b2 = new Ladybug(50, 80, 25, 1.0);
-
-    //m_players.push_back(f);
-    //m_players.push_back(b1);
-    //m_players.push_back(b2);
-
     srand48(1);
     // up to 15k
     m_boxes = 3000;
@@ -106,35 +63,35 @@ namespace dj {
     //for (uint32_t i = 0; i < m_boxes * 100; i++) 
     //  m_outcomes[i] = NONE;
 
-    m_view.center(400,300);
+    m_canvas.usable(0, 200, m_sz_x - 150, m_sz_y); // main canvas
+    m_sound_canvas.usable(m_sz_x - 150, 0, m_sz_x, m_sz_y); // for clipping
+    m_text_canvas.usable(0, 0, m_sz_x - 150, 200);
+    m_canvas_set.add(m_canvas, C_MAIN);
+    m_canvas_set.add(m_sound_canvas, C_SOUND);
+    m_canvas_set.add(m_text_canvas, C_TEXT);
+
+    m_view.center(0,0,1.0); // logical units
+    //m_view.center(0,0); // logical units
 
     InitSimulation();
   }
 
   void GameState::redraw(uint32_t* pixel_bits) {
-    std::vector<Player*>::iterator it;
-    it = m_players.begin();
-    //uint32_t color = m_colors[C_FIRE];
-    /*
-     * need to un-draw previous iteration
-     */
-    // FIXME: there must be a faster way to do this?
-    // just memset pixel_bits
-    /*
-    for (uint32_t x = 0; x < m_sz_x; x++)
-      for (uint32_t y = 0; y < m_sz_y; y++)
-        set(pixel_bits, x, y, 0xffffffff);
-    */
     // clear the canvas
     memset(pixel_bits, 0xff, m_sz_x * m_sz_y * sizeof(uint32_t));
+    m_canvas_set.setPixelBits(pixel_bits);
+    //m_canvas.setPixelBits(pixel_bits);
+    //m_sound_canvas.setPixelBits(pixel_bits);
+    //m_text_canvas.setPixelBits(pixel_bits);
 
-    Canvas canvas(pixel_bits, m_sz_x, m_sz_y);
-    //canvas.usable(0, m_sz_x, 0, m_sz_y - 150);
-    canvas.usable(0, 0, m_sz_x - 150, m_sz_y);
-    m_view.draw_axis(canvas);
+    m_view.border();
+    m_view.draw_axis();
+
+    std::vector<Player*>::iterator it;
+    it = m_players.begin();
     for ( ; it != m_players.end(); ++it) {
       Player *p = *it;
-      p->draw(canvas, m_display, false);
+      p->draw(m_canvas, m_display, false);
     }
 
 #if 1
@@ -152,10 +109,6 @@ namespace dj {
       set(pixel_bits, m_sz_x - 1, y, 0xffffffff);
     }
 #endif
-    canvas.set(2,2, 0xffffff1f);
-    canvas.set(2,3, 0xffffff1f);
-    canvas.set(3,2, 0xffffff1f);
-    canvas.set(3,3, 0xffffff1f);
 
     char buf[1280];
     sprintf(buf, "v%s thuds=%d steps=%d dec=%6d sound sample=%5d oc-inq=%2dk (%s)",
@@ -166,29 +119,42 @@ namespace dj {
       m_outcome_ix / 1000,
       m_debug
       );
-    m_display.m_ascii->draw_s(canvas, buf, 50, 3, 0xffffffff);
+#if VERBOSE
+    printf("%s\n", buf);
+#endif
 
+#if 1
     // draw the sound graph
     // FIXME: factor this
-    Canvas sound_canvas(pixel_bits, m_sz_x, m_sz_y);
     for (uint32_t y = 0; y < m_sz_y; y++) {
-      //double v = getBuffer(y * 2) + getBuffer(y * 2 + 1);
       int16_t v2 = getPlayedBuffer(y * 2);// + getPlayedBuffer(y * 2 + 1);
       double v = double(v2) / 32676.0; // -1.0 to 1.0
-      uint32_t center = m_sz_x - 75;;
-      if (v > 0) { 
-        sound_canvas.hline(center, center + v * 75, y, 0xffff0000);
+      uint32_t center = m_sz_x - 75;
+      if (v > 0) {
+        m_sound_canvas.hline(center, center + v * 75, y, 0xffff0000);
       } else {
-        sound_canvas.hline(center + v * 75, center, y, 0xffff0000);
+        m_sound_canvas.hline(center + v * 75, center, y, 0xffff0000);
       }
     }
+
+    m_display.m_ascii->draw_s(m_text_canvas, buf, 10, 10, 0xffffffff);
+
+    m_display.m_ascii->draw_s(m_text_canvas, m_debug2, 20, 170, 0xffffffff);
+#endif
+
   }
 
   void GameState::drag(device_t x, device_t y, int32_t dx, int32_t dy) {
+    char buf[1024];
+    sprintf(buf, "drag: %d,%d  d=%d,%d", x, y, dx, dy);
+    debug2(buf);
     m_view.move(dx, dy);
   }
 
   void GameState::zoom(device_t x, device_t y, double scale) {
+    char buf[1024];
+    sprintf(buf, "zooming: %d,%d  s=%3.3f", x, y, scale);
+    debug2(buf);
     m_view.zoom(x, y, scale);
   }
   void GameState::key(int k) {

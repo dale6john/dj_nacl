@@ -1,5 +1,5 @@
-#include "dj_two.h"
 #include <sys/time.h>
+#include "game.h"
 
 using namespace dj;
 
@@ -111,27 +111,33 @@ int main(int argc, char **argv) {
   uint32_t canvas_x = 800;
   uint32_t canvas_y = 600;
 
-  double view_scale = 1.0;
-  //double view_scale = 0.75; // zoom out a bit
-  //double view_scale = 1.67; // zoom in a bit
-  dj::View view(canvas_x, canvas_y, view_scale);
-  //view.center(60, 90);
-  view.center(0, 0);
-  //Numbers num(numbers, 12, 16);
-  //DisplayContext dc(&view, &num);
-
+#if 0
   uint32_t pixel_bits[canvas_x * canvas_y];
   Canvas canvas(pixel_bits, canvas_x, canvas_y);
   canvas.clear();
 
+  double view_scale = 1.0;
+  //double view_scale = 0.75; // zoom out a bit
+  //double view_scale = 1.67; // zoom in a bit
+  dj::View view(canvas, view_scale);
+  //view.center(60, 90);
+  view.center(0, 0);
+  //Numbers num(numbers, 12, 16);
+  //DisplayContext dc(&view, &num);
+#endif
+
   uint32_t px[800 * 600 + 100];
-  GameState game(800, 600, 1.0);
+  GameState game(canvas_x, canvas_y, 1.0);
   for (uint32_t i = 0; i < 2000; i++) {
     if (i % 100 == 0)
       printf("Step %d\n", i);
     game.step();
     //game.getTurn();
     game.redraw(px);
+#if 0
+    Canvas canvas(px, canvas_x, canvas_y);
+    render_ascii_dw(canvas, canvas_x, canvas_y);
+#endif
   }
 
   exit(0);

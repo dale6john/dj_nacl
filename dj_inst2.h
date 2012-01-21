@@ -1,7 +1,7 @@
 #ifndef __dj_inst__
 #define __dj_inst__
 
-#include "dj_two.h"
+#include "game.h"
 
 #include "ppapi/cpp/completion_callback.h"
 #include "ppapi/cpp/instance.h"
@@ -158,6 +158,7 @@ class DjTwoInstance : public pp::Instance {
   // This method is called by HandleMessage when a message containing 'paint'
   // is received.  Echos the current value of pi as computed by the Monte Carlo
   // method by posting the value back to the browser.
+  void Hello();
   void Paint();
   void Clock();
   void Quiet();

@@ -11,67 +11,70 @@ namespace dj {
 class View {
  public:
   static const uint32_t MAX_APPORTIONMENT = 200;
-  View(device_t sz_x, device_t sz_y, double scale) 
-      : m_sz_x(sz_x),
-        m_sz_y(sz_y),
-        x0(0),
-        y0(0),
+  View(Canvas& canvas, double scale) 
+      : m_canvas(canvas),
+        m_lg_ll(0, 0),
         m_scale_x(scale),
         m_scale_y(scale),
-        m_wx(double(m_sz_x) / m_scale_x),
-        m_wy(double(m_sz_y) / m_scale_y)
+        m_wx(double(canvas.width()) / m_scale_x),
+        m_wy(double(canvas.height()) / m_scale_y)
   {
   }
   ~View() {}
  public:
-  inline void device2logical(device_t x, device_t y, double &lx, double &ly) {
-    lx = x0 + m_wx * double(x) / double(m_sz_x);
-    ly = y0 + m_wy * double(y) / double(m_sz_y);
+  inline int32_t sz_x() { return m_canvas.width(); }
+  inline int32_t sz_y() { return m_canvas.height(); }
+
+  inline double dv2lu_x(int32_t ph_x) {
+    return (ph_x - m_canvas.llx()) * m_scale_x + m_lg_ll.x;
   }
-  inline double device2logical_x(device_t x) {
-    return x0 + m_wx * double(x) / double(m_sz_x);
+  inline double dv2lu_y(int32_t ph_y) {
+    return (ph_y - m_canvas.lly()) * m_scale_y + m_lg_ll.y;
   }
-  inline double device2logical_y(device_t y) {
-    return y0 + m_wy * double(y) / double(m_sz_y);
+  inline Point dv2lu(Point ph) {
+    Point pt(dv2lu_x(ph.x), dv2lu_y(ph.y));
+    return pt;
+  }
+  
+  inline int32_t lu2dv_x(double lu_x) {
+    int32_t ret = int32_t(((lu_x - m_lg_ll.x) * m_scale_x)) + m_canvas.llx();
+    //printf("x: (lux:%3.3f => dux:%d\n", lu_x, ret);
+    return ret;
+  }
+  inline int32_t lu2dv_y(double lu_y) {
+    int32_t ret = int32_t(((lu_y - m_lg_ll.y) * m_scale_y)) + m_canvas.lly();
+    //printf("y: (luy:%3.3f => duy:%d\n", lu_y, ret);
+    return ret;
+  }
+  inline Point lu2dv(int32_t x, int32_t y) {
+    Point pt(lu2dv_x(x), lu2dv_y(y));
+    return pt;
   }
 
-  inline void logical2device(double lx, double ly, int32_t& dv_x, int32_t& dv_y) {
-    dv_y = ((ly - y0) / m_wy) * double(m_sz_y);
-    dv_x = ((lx - x0) / m_wx) * double(m_sz_x);
-  }
-  inline int32_t logical2device_x(double x) {
-    return ((x - x0) / m_wx) * double(m_sz_x);
-  }
-  inline int32_t logical2device_y(double y) {
-    return ((y - y0) / m_wy) * double(m_sz_y);
-  }
+  void move(int32_t dx, int32_t dy);
 
-  void move(int32_t dx, int32_t dy) {
-    // move by physical amount
-    x0 += double(dx) / m_scale_x;
-    y0 -= double(dy) / m_scale_y;
-  }
   void center(double x, double y, double scale = 1.0);
 
   void zoom(device_t x, device_t y, double scale);
 
-  void draw_axis(Canvas& canvas);
+  void draw_axis();
 
-  void draw(Canvas& canvas, Drawable& gobi);
+  void border();
+
+  void draw(Drawable& gobi);
 
   //void draw(Canvas& canvas, uint32_t step, GobGroup& ggrp);
 
   void getCenter(double &x, double &y);
 
  public:
-  device_t m_sz_x; // physical dimensions of canvas
-  device_t m_sz_y;
-  double x0; // left
-  double y0; // lower
+  Canvas& m_canvas;
+  Point m_lg_ll; // logical lower left
+  Point m_lg_ur; // logical upper right
   double m_scale_x; // multiplier for logical co-ordinates to physical
   double m_scale_y;
-  double m_wx;  // width in logical units
-  double m_wy;  // height in logical units
+  double m_wx;  // (whole canvas) width in logical units
+  double m_wy;  // (whole canvas) height in logical units
 };
 
 }

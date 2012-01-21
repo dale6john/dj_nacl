@@ -21,7 +21,9 @@
       updateStatus('SUCCESS');
       DjOneModule.postMessage('hello');
       paintInterval = setInterval(function() {
-          DjOneModule.postMessage("paint");
+          if (stopped == 0) {
+            DjOneModule.postMessage("paint");
+          }
         }, 30);
       clockInterval = setInterval(function() {
           if (stopped == 0) {
@@ -148,7 +150,7 @@
 
     <embed name="nacl_module"
        id="dj_two"
-       width=1200 height=800
+       width=1200 height=700
        src="dj_two.nmf"
        type="application/x-nacl" />
   </div>

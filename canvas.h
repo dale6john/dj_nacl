@@ -2,6 +2,7 @@
 #define __canvas_h__
 
 #include "types.h"
+#include "point.h"
 
 /*
  * how to partition the canvas into separate plotting areas like
@@ -16,6 +17,8 @@ class Canvas {
         m_minx(0), m_miny(0), m_maxx(width), m_maxy(height) {}
   ~Canvas() {};
 
+  void setPixelBits(uint32_t* p) { m_px = p; }
+
   void usable(uint32_t from_x, uint32_t from_y, uint32_t to_x, uint32_t to_y) {
     // map a given usable area of the canvas to the effects of the
     // canvas drawing primitives.  All output to a given 'window' will
@@ -25,6 +28,15 @@ class Canvas {
     m_maxx = to_x;
     m_maxy = to_y;
   }
+
+  inline int32_t middleX() { return (m_maxx - m_minx) / 2 + m_minx; }
+  inline int32_t middleY() { return (m_maxy - m_miny) / 2 + m_miny; }
+  inline int32_t useableX() { return m_maxx - m_minx; }
+  inline int32_t useableY() { return m_maxy - m_miny; }
+  inline void ll(Point& pt) { pt.assign(m_minx, m_miny); }
+  inline int32_t llx() { return m_minx; }
+  inline int32_t lly() { return m_miny; }
+  inline void ur(Point& pt) { pt.assign(m_maxx, m_maxy); }
 
   inline void set(int32_t x, int32_t y, uint32_t color) {
     // input (inverted) DEVICE co-ordinates
@@ -46,10 +58,6 @@ class Canvas {
     if (x1 >= m_maxx) x1 = m_maxx - 1;
     if (x0 > x1) return;
 #endif
-    // assert x1 > x0
-    //if (x0 < m_minx) return;
-    //if (x1 >= m_maxx) return;
-    //if (y >= int32_t(m_h)) return;
     if (y >= m_miny && y < m_maxy) {
 #if 0
       // 5.88 sec / 2000 * 10k objects
@@ -69,13 +77,12 @@ class Canvas {
 #endif
     } else {
 #if PARANOID
-      printf("2/ set overrun x=%d (limit %d) y=%d (limit %d)\n", x1, m_w, y, m_h);
+      printf("2/ set overrun x=%d (limit %d) y=%d (limit %d %d->%d)\n", x1, m_w, y, m_h, m_miny, m_maxy);
       assert(!"overrun");
 #endif
     }
   }
   inline void vline(int32_t x, int32_t y0, int32_t y1, uint32_t color) {
-    // FIXME: not really used now.
     if (y1 >= int32_t(m_h)) y1 = m_h - 1;
     if (y0 < 0) y0 = 0;
     if (y0 >= int32_t(m_h)) return;
@@ -114,6 +121,34 @@ class Canvas {
   int32_t m_miny;
   int32_t m_maxx;
   int32_t m_maxy;
+};
+
+class CanvasSet {
+ public:
+  CanvasSet(uint32_t n) { 
+    m_c = new Canvas*[n];
+    m_tags = new uint32_t[n];
+    m_used = 0; 
+    for (uint32_t i = 0; i < n; i++)
+      m_c[i] = NULL;
+  }
+  ~CanvasSet() {
+    delete [] m_c;
+    delete [] m_tags;
+  }
+  void add(Canvas& canvas, uint32_t tag) {
+    m_tags[m_used] = tag;
+    m_c[m_used++] = &canvas;
+  }
+  void setPixelBits(uint32_t *px) {
+    for (uint32_t i = 0; i < m_used; i++)
+      if (m_c[i])
+        m_c[i]->setPixelBits(px);
+  }
+ private:
+  Canvas** m_c;
+  uint32_t* m_tags;
+  uint32_t m_used;
 };
 
 }

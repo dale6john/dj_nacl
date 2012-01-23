@@ -31,7 +31,7 @@ class Rectangle : public Drawable {
   ~Rectangle() {}
 
   virtual void show();
-  virtual void show(char *s);
+  virtual void show_s(char *s);
   virtual void fixbb(); // establish BB and cache rectangle points
   //virtual void transform(
   //          double grp_heading, double grp_scale, Point& grp_pivot,

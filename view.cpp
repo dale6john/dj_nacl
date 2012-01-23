@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "view.h"
+#include "log.h"
 
 using namespace dj;
 
@@ -29,25 +30,29 @@ void View::center(double x, double y, double scale) {
                  y - double(m_canvas.useableY()) / m_scale_y / 2.0);
   m_lg_ur.assign(x + double(m_canvas.useableX()) / m_scale_x / 2.0,
                  y + double(m_canvas.useableY()) / m_scale_y / 2.0);
+  theLog.info("v.center  %3.3f,%3.3f  s:%3.3f", x, y, scale);
 }
 
 void View::zoom(device_t x, device_t y, double scale) {
   // x and y are _device_, so y is flipped
   // move by physical amount, scale > 1 zoom out
+  theLog.info("v.zoom/ scale in: %3.3f  existing scale(x): %3.3f", scale, m_scale_x);
   if (scale < 1.0 && m_scale_x < 0.03125)
     return;
   if (scale > 1.0 && m_scale_x > 4)
     return;
 
-  Point lu_center = dv2lu(Point(x, y));
+  Point lu_center = cv2lu(Point(x, y));
+  theLog.info("v.zoom/ center lu: %3.3f %3.3f", lu_center.x, lu_center.y);
   center(lu_center.x, lu_center.y, scale * m_scale_x);
 }
 
 void View::move(int32_t dx, int32_t dy) {
-  int32_t x = lu2dv_x((m_lg_ll.x + m_lg_ur.x)/2) + dx;
+  int32_t x = lu2cv_x((m_lg_ll.x + m_lg_ur.x)/2) + dx;
   // y is inverted from _actual_ device units to 'dv' units
   // this is to make the dv origin the LL
-  int32_t y = lu2dv_y((m_lg_ll.y + m_lg_ur.y)/2) - dy;
+  int32_t y = lu2cv_y((m_lg_ll.y + m_lg_ur.y)/2) - dy;
+  theLog.info("v.move %d,%d => %d %d", dx, dy, x, y);
   zoom(x, y, 1.0);
 }
 
@@ -69,9 +74,9 @@ void View::border() {
   m_canvas.hline(llx, urx, ury, 0xffff00ff);
   m_canvas.hline(llx, urx, ury-1, 0xffff00ff);
 
-  m_canvas.vline(llx, lly, ury, 0xffff00ff);
+  m_canvas.vline(llx,   lly, ury, 0xffff00ff);
   m_canvas.vline(llx+1, lly, ury, 0xffff00ff);
-  m_canvas.vline(urx, lly, ury, 0xffff00ff);
+  m_canvas.vline(urx,   lly, ury, 0xffff00ff);
   m_canvas.vline(urx-1, lly, ury, 0xffff00ff);
 }
 
@@ -86,39 +91,41 @@ void View::draw_axis() {
 
   //printf("LU: x %3.3f -> %3.3f   y %3.3f -> %3.3f\n",
   //  lu_ll.x, lu_ur.x, lu_ll.y, lu_ur.y);
-  double lu0_x = lu2dv_x(0);
-  double lu0_y = lu2dv_y(0);
+  double dv0_x = lu2cv_x(0); // canvas units
+  double dv0_y = lu2cv_y(0);
 
   // y0,y1 is logical for lower and upper y bounds
   int32_t xstep = 1;
   int32_t ystep = 1;
 
-  int32_t xmin = int32_t(m_lg_ll.x);
-  int32_t xmax = int32_t(m_lg_ur.x);
-  int32_t ymin = int32_t(m_lg_ll.y);
-  int32_t ymax = int32_t(m_lg_ur.y);
-  if (true || m_wx > 100) {
+  int32_t lu_xmin = int32_t(m_lg_ll.x);
+  int32_t lu_xmax = int32_t(m_lg_ur.x);
+  int32_t lu_ymin = int32_t(m_lg_ll.y);
+  int32_t lu_ymax = int32_t(m_lg_ur.y);
+  if ((lu_xmax - lu_xmin) > 100) {
     xstep = 10;
-    xmin = (int32_t(m_lg_ll.x) / xstep) * xstep;
-    xmax = (int32_t(m_lg_ur.x) / xstep) * xstep;
+    lu_xmin = (int32_t(m_lg_ll.x) / xstep) * xstep;
+    lu_xmax = (int32_t(m_lg_ur.x) / xstep) * xstep;
     ystep = 10;
-    ymin = (int32_t(m_lg_ll.y) / ystep) * ystep;
-    ymax = (int32_t(m_lg_ur.y) / ystep) * ystep;
+    lu_ymin = (int32_t(m_lg_ll.y) / ystep) * ystep;
+    lu_ymax = (int32_t(m_lg_ur.y) / ystep) * ystep;
   }
   if (m_lg_ll.x < 0.0 && m_lg_ur.x > 0.0) {
-    m_canvas.vline(lu0_x, ph_ll.y, ph_ur.y, 0xff00ff00);
-    for (int32_t ix = ymin; ix <= ymax; ix+=ystep) {
-      int32_t dv_y = lu2dv_y(ix);
-      if (dv_y >= 0 && dv_y < m_canvas.height())
-        m_canvas.hline(lu0_x - 1, lu0_x + 1, dv_y, 0xffcccccc);
+    m_canvas.vline(dv0_x, 0, sz_y(), 0xff00ff00);
+    for (int32_t ix = lu_ymin; ix <= lu_ymax; ix+=ystep) {
+      int32_t dv_y = lu2cv_y(ix);
+      //printf("dv_y %d  height %d\n", dv_y, m_canvas.useableY());
+      if (dv_y >= 0 && dv_y < m_canvas.useableY() - 1)
+        m_canvas.hline(dv0_x - 2, dv0_x + 3, dv_y, 0xffcccccc);
     }
   }
   if (m_lg_ll.y < 0.0 && m_lg_ur.y > 0.0) {
-    m_canvas.hline(ph_ll.x, ph_ur.x, lu0_y, 0xff00ff00);
-    for (int32_t iy = ymin; iy <= ymax; iy+=ystep) {
-      int32_t dv_x = lu2dv_x(iy);
-      if (dv_x >= 0 && dv_x < m_canvas.width())
-        m_canvas.vline(dv_x, lu0_y - 1, lu0_y + 1, 0xffcccccc);
+    m_canvas.hline(0, sz_x(), dv0_y, 0xff00ff00);
+    for (int32_t iy = lu_ymin; iy <= lu_ymax; iy+=ystep) {
+      int32_t dv_x = lu2cv_x(iy);
+      theLog.info("dv_x %d  height %d  dv0_y %d", dv_x, m_canvas.useableX(), dv0_y);
+      if (dv_x >= 0 && dv_x < m_canvas.useableX() - 1)
+        m_canvas.vline(dv_x, dv0_y - 2, dv0_y + 2, 0xffcccccc);
     }
   }
 }
@@ -169,14 +176,15 @@ void View::draw(Drawable& gobi) {
   double miny = intersection.lower_left.y;
   double maxy = intersection.upper_right.y;
 
-  int32_t dv_y0 = lu2dv_y(miny);
-  int32_t dv_y1 = lu2dv_y(maxy);
+  int32_t dv_y0 = lu2cv_y(miny);
+  int32_t dv_y1 = lu2cv_y(maxy);
 #if VVERBOSE
   printf("device y range: %d to %d (not y flipped)\n", dv_y0, dv_y1);
 #endif
+  theLog.info("device y range: %d to %d (not y flipped)", dv_y0, dv_y1);
   uint32_t color = gobi.color();
   for (int32_t y = dv_y0; y < dv_y1; y++) {
-    double ly = dv2lu_y(y);
+    double ly = cv2lu_y(y);
 #if VVERBOSE
     printf("logical y: %3.3f\t", ly);
 #endif
@@ -193,13 +201,13 @@ void View::draw(Drawable& gobi) {
       printf("scan x: %3.3f to %3.3f (logical) (Gob)\t", dx0, dx1);
 #endif
       // x0, x1 back to physical
-      int32_t dv_x0 = lu2dv_x(dx0);
-      int32_t dv_x1 = lu2dv_x(dx1);
+      int32_t dv_x0 = lu2cv_x(dx0);
+      int32_t dv_x1 = lu2cv_x(dx1);
 #if VVERBOSE
       printf("physical x: %d to %d\n", dv_x0, dv_x1);
 #endif
       //m_canvas.hline(dv_x0, dv_x1, y, 0xff000000);
-      m_canvas.hline(dv_x0, dv_x1, y, color);
+      m_canvas.hline(dv_x0, dv_x1, y, color); // x,y in canvas co-ordinates
     }
   }
 }

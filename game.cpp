@@ -80,11 +80,8 @@ namespace dj {
     // clear the canvas
     memset(pixel_bits, 0xff, m_sz_x * m_sz_y * sizeof(uint32_t));
     m_canvas_set.setPixelBits(pixel_bits);
-    //m_canvas.setPixelBits(pixel_bits);
-    //m_sound_canvas.setPixelBits(pixel_bits);
-    //m_text_canvas.setPixelBits(pixel_bits);
 
-    m_view.border();
+    //m_view.border(); // FIXME: should be canvas-set
     m_view.draw_axis();
 
     std::vector<Player*>::iterator it;
@@ -127,35 +124,44 @@ namespace dj {
     // draw the sound graph
     // FIXME: factor this
     for (uint32_t y = 0; y < m_sz_y; y++) {
-      int16_t v2 = getPlayedBuffer(y * 2);// + getPlayedBuffer(y * 2 + 1);
-      double v = double(v2) / 32676.0; // -1.0 to 1.0
-      uint32_t center = m_sz_x - 75;
+      int16_t v2 = getPlayedBuffer(y * 2) + getPlayedBuffer(y * 2 + 1);
+      double v = double(v2) / 2.0 / 32676.0; // -1.0 to 1.0
+      uint32_t center = 75;
       if (v > 0) {
         m_sound_canvas.hline(center, center + v * 75, y, 0xffff0000);
       } else {
         m_sound_canvas.hline(center + v * 75, center, y, 0xffff0000);
       }
     }
+#endif
 
+#if 1
+    // fill the text area
     m_display.m_ascii->draw_s(m_text_canvas, buf, 10, 10, 0xffffffff);
+    m_display.m_ascii->draw_s(m_text_canvas, m_view.debug(), 495, 170, 0xffffffff);
 
     m_display.m_ascii->draw_s(m_text_canvas, m_debug2, 20, 170, 0xffffffff);
+    for (uint32_t ix = 0; ix < theLog.bufs(); ix++) {
+      if (ix < 6)
+        m_display.m_ascii->draw_s(m_text_canvas, theLog.buf(ix), 25, 145 - 20 * ix, 0xffffffff);
+      else
+        m_display.m_ascii->draw_s(m_text_canvas, theLog.buf(ix), 500, 145 - 20 * (ix - 6), 0xffffffff);
+    }
 #endif
 
   }
 
   void GameState::drag(device_t x, device_t y, int32_t dx, int32_t dy) {
-    char buf[1024];
-    sprintf(buf, "drag: %d,%d  d=%d,%d", x, y, dx, dy);
-    debug2(buf);
+    theLog.info("drag: %d,%d  d=%d,%d", x, y, dx, dy);
     m_view.move(dx, dy);
   }
 
   void GameState::zoom(device_t x, device_t y, double scale) {
-    char buf[1024];
-    sprintf(buf, "zooming: %d,%d  s=%3.3f", x, y, scale);
-    debug2(buf);
-    m_view.zoom(x, y, scale);
+    int32_t tx = 0;
+    int32_t ty = 0;
+    int32_t id = m_canvas_set.getCanvasId(x, y, tx, ty);
+    theLog.info("gs/zoom: %d,%d  => canvas: %d  %d,%d", x, y, id, tx, ty);
+    m_view.zoom(tx, ty, scale);
   }
   void GameState::key(int k) {
     std::vector<Player*>::iterator it;
@@ -165,6 +171,13 @@ namespace dj {
     }
   }
   void GameState::click(device_t x, device_t y) {
+    int32_t tx = 0;
+    int32_t ty = 0;
+    int32_t id = m_canvas_set.getCanvasId(x, y, tx, ty);
+    char buf[1024];
+    sprintf(buf, "click: %d,%d  => canvas: %d  %d,%d", x, y, tx, ty, id);
+    debug2(buf);
+
     /*
     std::vector<Player*>::iterator it;
     it = m_players.begin();

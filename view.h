@@ -25,29 +25,44 @@ class View {
   inline int32_t sz_x() { return m_canvas.width(); }
   inline int32_t sz_y() { return m_canvas.height(); }
 
-  inline double dv2lu_x(int32_t ph_x) {
-    return (ph_x - m_canvas.llx()) * m_scale_x + m_lg_ll.x;
+  inline double cv2dv_x(int32_t cv_x) {
+    return cv_x + m_canvas.llx();
   }
-  inline double dv2lu_y(int32_t ph_y) {
-    return (ph_y - m_canvas.lly()) * m_scale_y + m_lg_ll.y;
+  inline double cv2dv_y(int32_t cv_y) {
+    return cv_y + m_canvas.lly();
   }
-  inline Point dv2lu(Point ph) {
-    Point pt(dv2lu_x(ph.x), dv2lu_y(ph.y));
+
+  inline double cv2lu_x(int32_t ph_x) {
+    //double ret = (ph_x - m_canvas.llx()) * m_scale_x + m_lg_ll.x;
+    double ret = ph_x * m_scale_x + m_lg_ll.x;
+    //theLog.info("cv2lu_x(%d) => %3.3f", ph_x, ret);
+    return ret;
+  }
+  inline double cv2lu_y(int32_t ph_y) {
+    double ret = ph_y * m_scale_y + m_lg_ll.y;
+    //double ret = (ph_y - m_canvas.lly()) * m_scale_y + m_lg_ll.y;
+    //theLog.info("cv2lu_y(%d) => %3.3f", ph_y, ret);
+    return ret;
+  }
+  inline Point cv2lu(Point ph) {
+    Point pt(cv2lu_x(ph.x), cv2lu_y(ph.y));
     return pt;
   }
   
-  inline int32_t lu2dv_x(double lu_x) {
-    int32_t ret = int32_t(((lu_x - m_lg_ll.x) * m_scale_x)) + m_canvas.llx();
+  inline int32_t lu2cv_x(double lu_x) {
+    //int32_t ret = int32_t(((lu_x - m_lg_ll.x) * m_scale_x)) + m_canvas.llx();
+    int32_t ret = int32_t(((lu_x - m_lg_ll.x) * m_scale_x));
     //printf("x: (lux:%3.3f => dux:%d\n", lu_x, ret);
     return ret;
   }
-  inline int32_t lu2dv_y(double lu_y) {
-    int32_t ret = int32_t(((lu_y - m_lg_ll.y) * m_scale_y)) + m_canvas.lly();
+  inline int32_t lu2cv_y(double lu_y) {
+    //int32_t ret = int32_t(((lu_y - m_lg_ll.y) * m_scale_y)) + m_canvas.lly();
+    int32_t ret = int32_t(((lu_y - m_lg_ll.y) * m_scale_y));
     //printf("y: (luy:%3.3f => duy:%d\n", lu_y, ret);
     return ret;
   }
-  inline Point lu2dv(int32_t x, int32_t y) {
-    Point pt(lu2dv_x(x), lu2dv_y(y));
+  inline Point lu2cv(int32_t x, int32_t y) {
+    Point pt(lu2cv_x(x), lu2cv_y(y));
     return pt;
   }
 
@@ -67,6 +82,12 @@ class View {
 
   void getCenter(double &x, double &y);
 
+  const char * debug() {
+    sprintf(m_debug, "LL(%3.1f,%3.1f) UR(%3.1f,%3.1f) s(%3.2f,%3.2f)",
+      m_lg_ll.x, m_lg_ll.y, m_lg_ur.x, m_lg_ur.y, m_scale_x, m_scale_y);
+    return m_debug;
+  }
+
  public:
   Canvas& m_canvas;
   Point m_lg_ll; // logical lower left
@@ -75,6 +96,7 @@ class View {
   double m_scale_y;
   double m_wx;  // (whole canvas) width in logical units
   double m_wy;  // (whole canvas) height in logical units
+  char m_debug[1024];
 };
 
 }

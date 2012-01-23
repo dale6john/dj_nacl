@@ -8,7 +8,7 @@ void Rectangle::show() {
   printf("%s\n", s);
 }
 
-void Rectangle::show(char *s) {
+void Rectangle::show_s(char *s) {
   if (m_needs_redraw) fixbb();
   char buf1[120], buf2[120], buf3[120];
   sprintf(s, "rectangle O%s O2%s P%s hdg:%3.1f s:%3.1f w:%3.1f h:%3.1f",

@@ -3,6 +3,7 @@
 
 #include "types.h"
 #include "point.h"
+#include "log.h"
 
 /*
  * how to partition the canvas into separate plotting areas like
@@ -36,6 +37,8 @@ class Canvas {
   inline void ll(Point& pt) { pt.assign(m_minx, m_miny); }
   inline int32_t llx() { return m_minx; }
   inline int32_t lly() { return m_miny; }
+  inline int32_t urx() { return m_maxx; }
+  inline int32_t ury() { return m_maxy; }
   inline void ur(Point& pt) { pt.assign(m_maxx, m_maxy); }
 
   inline void set(int32_t x, int32_t y, uint32_t color) {
@@ -53,46 +56,55 @@ class Canvas {
 #endif
   }
   inline void hline(int32_t x0, int32_t x1, int32_t y, uint32_t color) {
+    // inputs are canvas units
+    int32_t x0fix = x0 + m_minx;
+    int32_t x1fix = x1 + m_minx;
+    int32_t yfix = y + m_miny; // translate from canvas co-ordinates to physical
 #if 1
-    if (x0 < m_minx) x0 = m_minx;
-    if (x1 >= m_maxx) x1 = m_maxx - 1;
-    if (x0 > x1) return;
+    if (x0fix < m_minx) x0fix = m_minx;
+    if (x1fix >= m_maxx) x1fix = m_maxx - 1;
+    if (x0fix > x1fix) return;
 #endif
-    if (y >= m_miny && y < m_maxy) {
+    if (yfix >= m_miny && yfix < m_maxy) {
 #if 0
       // 5.88 sec / 2000 * 10k objects
-      for (int32_t xx = x0; xx <= x1; xx++)
-        m_px[m_w * (m_h - 1 - y) + xx] = color;
+      for (int32_t xx = x0fix; xx <= x1fix; xx++)
+        m_px[m_w * (m_h - 1 - yfix) + xx] = color;
 #else
       // 5.69 sec / 2000 * 10k objects
       // 5.44 sec (caching slopes)
-      uint32_t* p0 = &m_px[m_w * (m_h - 1 - y) + x0];
+      uint32_t* p0 = &m_px[m_w * (m_h - 1 - yfix) + x0fix];
       //p0[0] = fix_color(color);
-      //p0[x1 - x0 - 1] = fix_color(color);
+      //p0[x1fix - x0fix - 1] = fix_color(color);
       //p0[0] = fix_color(color);
       p0[0] = color;
-      //p0[x1 - x0 - 1] = color;
-      for (int32_t i = 1; i < x1 - x0 - 1; i++)
+      //p0[x1fix - x0fix - 1] = color;
+      for (int32_t i = 1; i < x1fix - x0fix - 1; i++)
         *++p0 = color;
 #endif
     } else {
 #if PARANOID
-      printf("2/ set overrun x=%d (limit %d) y=%d (limit %d %d->%d)\n", x1, m_w, y, m_h, m_miny, m_maxy);
+      printf("2/ set overrun x=%d (limit %d) yfix=%d (limit %d %d->%d)\n", x1fix, m_w, yfix, m_h, m_miny, m_maxy);
       assert(!"overrun");
 #endif
     }
   }
   inline void vline(int32_t x, int32_t y0, int32_t y1, uint32_t color) {
-    if (y1 >= int32_t(m_h)) y1 = m_h - 1;
-    if (y0 < 0) y0 = 0;
-    if (y0 >= int32_t(m_h)) return;
-    if (y1 >= int32_t(m_h)) return;
-    if (x >= int32_t(m_w)) return;
-    if (x >= 0 && x < int32_t(m_w)) {
-      for (int32_t yy = y0; yy <= y1; yy++)
-        m_px[m_w * (m_h - 1 - yy) + x] = color;
+    // inputs are canvas units
+    int32_t xfix = x + m_minx;
+    int32_t y0fix = y0 + m_miny;
+    int32_t y1fix = y1 + m_miny;
+
+    if (y1fix >= int32_t(m_h)) y1fix = m_h - 1;
+    if (y0fix < 0) y0fix = 0;
+    if (y0fix >= int32_t(m_h)) return;
+    if (y1fix >= int32_t(m_h)) return;
+    if (xfix >= int32_t(m_w)) return;
+    if (xfix >= 0 && xfix < int32_t(m_w)) {
+      for (int32_t yy = y0fix; yy <= y1fix; yy++)
+        m_px[m_w * (m_h - 1 - yy) + xfix] = color;
     } else {
-      printf("3/ set overrun x=%d (limit %d) y=%d (limit %d)\n", x, m_w, y1, m_h);
+      printf("3/ set overrun xfix=%d (limit %d) y=%d (limit %d)\n", xfix, m_w, y1fix, m_h);
       assert(!"overrun");
     }
   }
@@ -111,9 +123,10 @@ class Canvas {
   void clear() {
     memset(m_px, 0xff, sizeof(uint32_t) * m_w * m_h);
   }
- public: // FIXME
-  uint32_t* m_px;
+
  private:
+  uint32_t* m_px;
+
   device_t m_w;
   device_t m_h;
 
@@ -124,6 +137,7 @@ class Canvas {
 };
 
 class CanvasSet {
+ // FIXME: is-a canvas??
  public:
   CanvasSet(uint32_t n) { 
     m_c = new Canvas*[n];
@@ -144,6 +158,30 @@ class CanvasSet {
     for (uint32_t i = 0; i < m_used; i++)
       if (m_c[i])
         m_c[i]->setPixelBits(px);
+  }
+  int32_t getCanvasId(int32_t x, int32_t y, int32_t& tx, int32_t& ty) {
+    theLog.info("getCanvasId(%d %d)", x, y);
+    for (uint32_t i = 0; i < m_used; i++) {
+      int32_t y_inv = m_c[i]->height() - y;
+      if (m_c[i]) {
+        /*
+        theLog.info("i %d (%d,%d) x(%d %d) y(%d %d)", i, x, y_inv,
+          m_c[i]->llx(),
+          m_c[i]->urx(),
+          m_c[i]->lly(),
+          m_c[i]->ury()
+        );
+        */
+        if (!(x < m_c[i]->llx() || x > m_c[i]->urx() || y_inv < m_c[i]->lly()
+            || y_inv > m_c[i]->ury())) {
+          // it's in this one
+          tx = x - m_c[i]->llx();
+          ty = y_inv - m_c[i]->lly();
+          return m_tags[i];
+        }
+      }
+    }
+    return -1;
   }
  private:
   Canvas** m_c;

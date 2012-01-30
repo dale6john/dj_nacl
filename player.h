@@ -98,6 +98,7 @@ namespace dj {
    public:
     play_t m_code;
     double m_speed;
+    double m_area;
     Point m_at; // this is logical units
   };
 
@@ -179,6 +180,7 @@ namespace dj {
         //ret = FLY | (static_cast<int16_t>(force) << 16);
         ret.m_code = FLY;
         ret.m_speed = m_speed.distance();
+        ret.m_area = m_rect.area();
 
 /*
         double wind_d = m_speed.x - wind;

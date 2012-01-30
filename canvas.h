@@ -15,7 +15,8 @@ class Canvas {
  public:
   Canvas(uint32_t* pixel_bits, device_t width, device_t height)
       : m_px(pixel_bits), m_w(width), m_h(height),
-        m_minx(0), m_miny(0), m_maxx(width), m_maxy(height) {}
+        m_minx(0), m_miny(0), m_maxx(width), m_maxy(height),
+        m_clips(0) {}
   ~Canvas() {};
 
   void setPixelBits(uint32_t* p) { m_px = p; }
@@ -40,7 +41,20 @@ class Canvas {
   inline int32_t urx() { return m_maxx; }
   inline int32_t ury() { return m_maxy; }
   inline void ur(Point& pt) { pt.assign(m_maxx, m_maxy); }
+  inline uint32_t clips() const { return m_clips; }
 
+  inline void border(uint8_t pixels, uint32_t color) {
+    int32_t dx = m_maxx - m_minx;
+    int32_t dy = m_maxy - m_miny;
+    //theLog.info("drawing border x:%d %d  y:%d %d", m_minx, m_maxx, m_miny, m_maxy);
+    for (uint32_t i = 0; i < pixels; i++) {
+      hline(0, dx - 1, i, color);
+      hline(0, dx - 1, dy - 1 - i, color);
+      vline(i, 1, dy - 1, color);
+      vline(dx - 1 - i, 1, dy - 1, color);
+    }
+    m_border = pixels;
+  }
   inline void set(int32_t x, int32_t y, uint32_t color) {
     // input (inverted) DEVICE co-ordinates
     // FIXME: do we really need all 4 comparisons here?
@@ -61,11 +75,12 @@ class Canvas {
     int32_t x1fix = x1 + m_minx;
     int32_t yfix = y + m_miny; // translate from canvas co-ordinates to physical
 #if 1
-    if (x0fix < m_minx) x0fix = m_minx;
-    if (x1fix >= m_maxx) x1fix = m_maxx - 1;
+    if (x0fix < m_minx + m_border) x0fix = m_minx + m_border;
+    if (x1fix >= m_maxx - m_border) x1fix = m_maxx - 1 - m_border;
     if (x0fix > x1fix) return;
 #endif
-    if (yfix >= m_miny && yfix < m_maxy) {
+    if (yfix < m_maxy - m_border) {
+    //if (yfix >= m_miny && yfix < m_maxy) 
 #if 0
       // 5.88 sec / 2000 * 10k objects
       for (int32_t xx = x0fix; xx <= x1fix; xx++)
@@ -73,6 +88,9 @@ class Canvas {
 #else
       // 5.69 sec / 2000 * 10k objects
       // 5.44 sec (caching slopes)
+      //
+      // FLIPPING Y to DEVICE UNITS from CANVAS UNITS
+      //
       uint32_t* p0 = &m_px[m_w * (m_h - 1 - yfix) + x0fix];
       //p0[0] = fix_color(color);
       //p0[x1fix - x0fix - 1] = fix_color(color);
@@ -83,6 +101,8 @@ class Canvas {
         *++p0 = color;
 #endif
     } else {
+      //theLog.info("clip: y=%d (unflipped)", yfix);
+      m_clips++;
 #if PARANOID
       printf("2/ set overrun x=%d (limit %d) yfix=%d (limit %d %d->%d)\n", x1fix, m_w, yfix, m_h, m_miny, m_maxy);
       assert(!"overrun");
@@ -134,6 +154,8 @@ class Canvas {
   int32_t m_miny;
   int32_t m_maxx;
   int32_t m_maxy;
+  uint8_t m_border;
+  uint32_t m_clips;
 };
 
 class CanvasSet {

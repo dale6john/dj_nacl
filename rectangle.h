@@ -39,6 +39,7 @@ class Rectangle : public Drawable {
   virtual void xrange_reset() { m_xr = true; }
   virtual bool xrange(double y, double &x0, double &x1);
   void calc_slopes();
+  virtual double area() const;
 
  private:
   double m_width;

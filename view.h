@@ -34,14 +34,15 @@ class View {
 
   inline double cv2lu_x(int32_t ph_x) {
     //double ret = (ph_x - m_canvas.llx()) * m_scale_x + m_lg_ll.x;
-    double ret = ph_x * m_scale_x + m_lg_ll.x;
+    double ret = ph_x / m_scale_x + m_lg_ll.x;
     //theLog.info("cv2lu_x(%d) => %3.3f", ph_x, ret);
+    //theLog.info("cv2lu_x(%d) s:%3.3f llx:%3.3f => %3.3f", ph_x, m_scale_x, m_lg_ll.x, ret);
     return ret;
   }
   inline double cv2lu_y(int32_t ph_y) {
-    double ret = ph_y * m_scale_y + m_lg_ll.y;
+    double ret = ph_y / m_scale_y + m_lg_ll.y;
     //double ret = (ph_y - m_canvas.lly()) * m_scale_y + m_lg_ll.y;
-    //theLog.info("cv2lu_y(%d) => %3.3f", ph_y, ret);
+    //theLog.info("cv2lu_y(%d) s:%3.3f lly:%3.3f => %3.3f", ph_y, m_scale_y, m_lg_ll.y, ret);
     return ret;
   }
   inline Point cv2lu(Point ph) {

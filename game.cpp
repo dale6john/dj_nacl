@@ -31,7 +31,7 @@ namespace dj {
   {
     srand48(1);
     // up to 15k
-    m_boxes = 3000;
+    m_boxes = 9000;
     for (uint32_t i = 0; i < m_boxes; i++) {
       double x = 1.0 + drand48() * 149.0;
       double y = 1.0 + drand48() * 149.0;
@@ -81,7 +81,16 @@ namespace dj {
     memset(pixel_bits, 0xff, m_sz_x * m_sz_y * sizeof(uint32_t));
     m_canvas_set.setPixelBits(pixel_bits);
 
-    //m_view.border(); // FIXME: should be canvas-set
+    const uint32_t red   = 0xffff0000;
+    const uint32_t green = 0xff00ff00;
+    const uint32_t blue  = 0xff0000ff;
+    const uint32_t ltgrey = 0xff999999;
+
+    // borders
+    m_sound_canvas.border(2, green);
+    m_text_canvas.border(2, red);
+    m_canvas.border(1, blue);
+    // axis
     m_view.draw_axis();
 
     std::vector<Player*>::iterator it;
@@ -93,6 +102,7 @@ namespace dj {
 
 #if 1
     // frame it
+    // FIXME: use canvas frame()
     for (device_t x = 0; x < m_sz_x; x++) {
       set(pixel_bits, x, 0, 0xffffffff);
       set(pixel_bits, x, 1, 0xff000000);
@@ -125,7 +135,7 @@ namespace dj {
     // FIXME: factor this
     for (uint32_t y = 0; y < m_sz_y; y++) {
       int16_t v2 = getPlayedBuffer(y * 2) + getPlayedBuffer(y * 2 + 1);
-      double v = double(v2) / 2.0 / 32676.0; // -1.0 to 1.0
+      double v = double(v2) / 32676.0; // -1.0 to 1.0
       uint32_t center = 75;
       if (v > 0) {
         m_sound_canvas.hline(center, center + v * 75, y, 0xffff0000);
@@ -140,6 +150,7 @@ namespace dj {
     m_display.m_ascii->draw_s(m_text_canvas, buf, 10, 10, 0xffffffff);
     m_display.m_ascii->draw_s(m_text_canvas, m_view.debug(), 495, 170, 0xffffffff);
 
+    sprintf(m_debug2, "clips: %d", m_canvas.clips());
     m_display.m_ascii->draw_s(m_text_canvas, m_debug2, 20, 170, 0xffffffff);
     for (uint32_t ix = 0; ix < theLog.bufs(); ix++) {
       if (ix < 6)
@@ -152,15 +163,15 @@ namespace dj {
   }
 
   void GameState::drag(device_t x, device_t y, int32_t dx, int32_t dy) {
-    theLog.info("drag: %d,%d  d=%d,%d", x, y, dx, dy);
+    //theLog.info("drag: %d,%d  d=%d,%d", x, y, dx, dy);
     m_view.move(dx, dy);
   }
 
   void GameState::zoom(device_t x, device_t y, double scale) {
     int32_t tx = 0;
     int32_t ty = 0;
-    int32_t id = m_canvas_set.getCanvasId(x, y, tx, ty);
-    theLog.info("gs/zoom: %d,%d  => canvas: %d  %d,%d", x, y, id, tx, ty);
+    /* int32_t id = */ m_canvas_set.getCanvasId(x, y, tx, ty);
+    //theLog.info("gs/zoom: %d,%d  => canvas: %d  %d,%d", x, y, id, tx, ty);
     m_view.zoom(tx, ty, scale);
   }
   void GameState::key(int k) {

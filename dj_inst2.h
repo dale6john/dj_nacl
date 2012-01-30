@@ -65,7 +65,7 @@ class DjTwoInstance : public pp::Instance {
   uint32_t sample_frame_count_;
 
   // code to cache sounds we get
-  static const uint32_t sound_cache_items = 100;
+  static const uint32_t sound_cache_items = 32 * 16; // 32 speed, 16 area
   static const uint32_t sound_cache_each = 10000; // about 250 ms - mono
   double sound_cache[sound_cache_items * sound_cache_each];
   uint32_t sound_cache_sz[sound_cache_items];
@@ -81,38 +81,64 @@ class DjTwoInstance : public pp::Instance {
     }
     cache_hit = cache_miss = cache_tries = 0;
   }
-  void add_sound(play_t outcome, double speed, GameState* board) {
+  void add_sound(play_t outcome, double speed, double area, GameState* board) {
+    double norm_area = 1 + (area - 50.0) / 30.0 ; // ~ mean 1, std 0.2
+    if (norm_area < 0.0) norm_area = 0.0;
+    double norm_speed = log(1 + speed); // ~ mean 1, std 0.4, tail high, with some 3 and 4
+    if (drand48() > 0.99)
+      theLog.info("norm speed=%-3.3f  area=%3.3f [%-3.3f]", norm_speed, area, norm_area);
     if (outcome == BOUNCE_GROUND) {
-      double theta = 0.0;
-      double delta = 30 * M_PI / 180;
-      double volume2 = log(speed)/log(5);
+      //double norm_speed = 1 + (speed - ;
+      double base_volume = 0.08;
+      double volume2 = base_volume * sqrt(norm_speed) / 2 * norm_area;
       uint32_t at = lrand48() % 2000;
 
-      int32_t six = uint32_t(floor(speed * 10));
-      if (six >= int32_t(sound_cache_items))
-        six = sound_cache_items - 1;
+      //int32_t six = uint32_t(floor(speed * 10));
+      int32_t six = uint32_t(floor(norm_speed * 20));
+      if (six > 31) six = 31;
+      int32_t aix = uint32_t(floor(norm_area * 10));
+      if (aix > 15) aix = 15;
+      int32_t cache_ix = aix | (six << 4); // 9 bits
+
+      if (cache_ix >= int32_t(sound_cache_items))
+        cache_ix = sound_cache_items - 1; // really??
       double *cache = NULL;
       bool valid_cache = true;
-      bool have_cache = valid_cache && (sound_cache_sz[six] > 0);
+      bool have_cache = valid_cache && (sound_cache_sz[cache_ix] > 0);
       if (valid_cache) 
-        cache = &sound_cache[six * sound_cache_each];
+        cache = &sound_cache[cache_ix * sound_cache_each];
       cache_tries++;
+      theLog.info("C[%d,%d=>%d]", six, aix, cache_ix);
 
       if (!have_cache) {
+        double theta = 0.0;
+        double theta2 = 0.0;
+        double theta3 = 0.0;
+        double delta = 50 * M_PI / 180 / double(5 + aix);
+
         cache_miss++;
         double volume = 0.0;
-        for (uint32_t j = 0; j < floor(speed * 100); j++) {
+        for (uint32_t j = 0; j < (six + 40) * 70; j++) {
           if (volume < 0.2)
             volume += 0.004;
           double sample = volume * volume2 * sin(theta);
-          board->setSoundSample(at + j, sample);
+          double sample2 = 0.3 * volume * volume2 * sin(theta2);
+          double sample3 = 0.0;
+          if (aix < 4)
+            sample3 = 1.4 * volume * volume2 * sin(theta3);
+          else if (six > 25)
+            sample3 = 0.8 * volume * volume2 * sin(theta3);
+          board->setSoundSample(at + j, sample + sample2 + sample3);
           if (valid_cache) {
-            cache[j] = sample;
-            sound_cache_sz[six]++;
+            cache[j] = sample + sample2 + sample3;
+            sound_cache_sz[cache_ix]++;
           }
 
           theta += delta;
+          theta2 += delta * 1.5;
+          theta3 += delta * 3;
           if (theta > 2 * M_PI) theta -= 2 * M_PI;
+          if (theta2 > 2 * M_PI) theta2 -= 2 * M_PI;
           if (delta > 15 * M_PI / 180)
             delta *= 0.999;
           if (volume2 > 0.2)
@@ -121,7 +147,7 @@ class DjTwoInstance : public pp::Instance {
       } else {
         // apply cache
         cache_hit++;
-        for (uint32_t j = 0; j < sound_cache_sz[six]; j++) {
+        for (uint32_t j = 0; j < sound_cache_sz[cache_ix]; j++) {
           double sample = cache[j];
           board->setSoundSample(at + j, sample);
         }

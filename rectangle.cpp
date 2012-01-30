@@ -4,7 +4,7 @@ using namespace dj;
 
 void Rectangle::show() {
   char s[1024];
-  show(s);
+  show_s(s);
   printf("%s\n", s);
 }
 
@@ -64,6 +64,10 @@ void Rectangle::calc_slopes() {
     pp1++;
   }
   m_slopes_wrong = false;
+}
+
+double Rectangle::area() const {
+  return m_width * m_height;
 }
 
 bool Rectangle::xrange(double y, double &x0, double &x1) {

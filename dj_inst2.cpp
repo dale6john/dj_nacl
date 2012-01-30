@@ -338,7 +338,7 @@ namespace dj {
     // bang noise first
     int32_t bang = dj->getBoard()->m_bang;
     if (bang == 1) {
-      double bang_volume = 1.0;
+      double bang_volume = 0.1;
       uint32_t count = 50; // samples per noise value
       double v_curr = drand48() * 2.0 - 1.0;
       double theta = 0;
@@ -370,7 +370,7 @@ namespace dj {
       // extra '0' at the end :( so subtract 1 still use '<'
       uint32_t num_samples = sizeof(wave)/sizeof(int16_t) - 1;
       for (uint32_t j = 0; j < 2048; j++) {
-        double volume = 0.5;
+        double volume = 0.2;
         if (dj->getBoard()->m_music_sample_ix < 1024 || dj->getBoard()->m_music_sample_ix > num_samples - 1044)
           volume = 0.0;
         if (dj->getBoard()->m_music_sample_ix >= num_samples)
@@ -405,12 +405,13 @@ namespace dj {
     for (uint32_t i = 0; i < dj->getBoard()->m_outcome_ix; i++) {
       play_t outcome = outcomes[i].m_code;
       double speed = outcomes[i].m_speed;
+      double area = outcomes[i].m_area;
       Point outcome_at = outcomes[i].m_at;
       switch(outcome) {
         case NONE:
           break;
         case THUD:
-          if (1) {
+          if (0) {
             uint32_t count = 50; // samples per noise value
             double v_curr = drand48() * 2.0 - 1.0;
             double thud_volume = 0.01;
@@ -420,13 +421,15 @@ namespace dj {
               double v_slope = (v_next - v_curr) / double(count);
               //if (ix % 1000 == 0) count++;
               // use count to go from v to v_next
+              double ramp = 0.0;
               for (uint32_t i = 0; i < count; i++) {
+                if (i < 100) ramp += 0.01;
                 double v = v_next;
                 if (i < count / 2)
                   v = v_curr + v_slope * i * 2;
                 if (ix > 44100 / 40)
                   thud_volume *= 0.9999;
-                dj->getBoard()->setSoundSample(at + ix, v * thud_volume);
+                dj->getBoard()->setSoundSample(at + ix, v * ramp * thud_volume);
                 ix++;
               }
               v_curr = v_next;
@@ -440,7 +443,7 @@ namespace dj {
             if (speed > 0.5) {
               if (limit >= 0) {
                 limit--;
-                dj->add_sound(outcome, speed, dj->getBoard());
+                dj->add_sound(outcome, speed, area, dj->getBoard());
               }
             }
           }
@@ -517,13 +520,20 @@ namespace dj {
     //
     for (uint32_t ix = 0; ix < 2048; ix++) {
       double v = dj->getBoard()->getBuffer(ix) / 2.0;
+      /*
+       * supposed to be high frequency filter
+      for (uint32_t i = 0; i < 20; i++) {
+        v += dj->getBoard()->getBuffer(ix + i) / double(i + 2);
+      }
+      */
       dj->getBoard()->clearBuffer(ix, 0.0);
       int16_t sign = (v > 0) ? 1 : -1;
       v = (v > 0) ? v : -v;
-      if (v > 0.99) v = 0.99;
+      v *= master_volume;
+      if (v >  0.49) v =  0.49;
+      if (v < -0.40) v = -0.49;
       //double v2 = log(1 + v)/log(500) * max_int16;
       double v2 = double(v) * double(max_int16) * double(sign);
-      v2 *= master_volume;
       int16_t scaled_value = static_cast<int16_t>(v2);
       *buff++ = scaled_value; // left
       *buff++ = scaled_value; // right

@@ -63,3 +63,11 @@ point.h - point class
 rectangle.h, cpp - representation of rectangle (uses gob.h)
 types.h - cruft
 
+
+
+TODO
+====
+change tone based on square size
+put boundaries on windows
+fix zoom and pan
+

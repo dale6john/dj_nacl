@@ -1,0 +1,21 @@
+#! -*- python -*-
+#
+# Copyright (c) 2011 The Native Client Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import make_nacl_env
+import nacl_utils
+import os
+from datetime import datetime
+import string
+
+nacl_env = make_nacl_env.NaClEnvironment(use_c_plus_plus_libs=True)
+
+nacl_env.Append(tools=['nacl_tools'], CXXFLAGS=['-DPARANOID=0', '-I../util'])
+
+ver=datetime.now().strftime("%Y%m%d-%H%M%S")
+nacl_env.Append(tools=['nacl_tools'], CXXFLAGS='-DVERSION=\\"' + ver + '\\"')
+
+sources = ['game.cpp', 'gbox.cpp', 'view.cpp', 'rectangle.cpp', 'circle.cpp', 'log.cpp']
+nacl_env.AllNaClModules(sources, 'gbox')

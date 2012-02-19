@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>G-box</title>
+
+  <style type="text/css">
+    div#one {
+      border: 1px solid blue;
+      padding: 5px;
+    }
+    div#two {
+      border: 1px solid green;
+      padding: 5px;
+    }
+  </style>
+
+  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+  <script type="text/javascript">
+    DjOneModule = null;  // Global application object.
+    var paintInterval = null;
+    var clockInterval = null;
+    var stopped = 0;
+    var quiet = 1;
+    var num_boxes = 100;
+
+    // When the NaCl module has loaded, hook up an event listener to handle
+    // messages coming from it via PPB_Messaging.PostMessage() (in C) or
+    // pp::Instance.PostMessage() (in C++), and indicate success.
+    function moduleDidLoad() {
+      DjOneModule = document.getElementById('gbox');
+      DjOneModule.addEventListener('message', handleMessage, false);
+      updateStatus('SUCCESS');
+      DjOneModule.postMessage('hello');
+      DjOneModule.postMessage('c/100');
+      paintInterval = setInterval(function() {
+          if (stopped == 0) {
+            DjOneModule.postMessage("paint");
+          }
+        }, 25);
+      clockInterval = setInterval(function() {
+          if (stopped == 0) {
+            DjOneModule.postMessage("clock");
+          }
+        }, 25);
+    }
+
+    // The 'message' event handler.  This handler is fired when the NaCl module
+    // posts a message to the browser by calling PPB_Messaging.PostMessage()
+    // (in C) or pp::Instance.PostMessage() (in C++).  This implementation
+    // simply displays the content of the message in an alert panel.
+    function handleMessage(message_event) {
+      //document.form.pi.value = message_event.data;
+      if (message_event.data.substring(0,1) == "/") {
+        document.form.fps.value = message_event.data.substr(1);
+      } else if (message_event.data.substring(0,1) == "_") {
+        document.form.msg2.value = message_event.data;
+      } else if (message_event.data.substring(0,1) == "+") {
+        document.form.msg1.value = message_event.data;
+      } else {
+        document.form.pi.value = message_event.data;
+      }
+    }
+
+    // If the page loads before the Native Client module loads, then set the
+    // status message indicating that the module is still loading.  Otherwise,
+    // do not change the status message.
+    function pageDidLoad() {
+      if (DjOneModule == null) {
+        updateStatus('LOADING...');
+      } else {
+        // It's possible that the Native Client module onload event fired
+        // before the page's onload event.  In this case, the status message
+        // will reflect 'SUCCESS', but won't be displayed.  This call will
+        // display the current message.
+        updateStatus();
+      }
+    }
+
+    // Set the global status message.  If the element with id 'statusField'
+    // exists, then set its HTML to the status message as well.
+    // opt_message The message test.  If this is null or undefined, then
+    // attempt to set the element with id 'statusField' to the value of
+    // |statusText|.
+    function updateStatus(opt_message) {
+      if (opt_message)
+        statusText = opt_message;
+      var statusField = document.getElementById('status_field');
+      if (statusField) {
+        statusField.innerHTML = statusText;
+      }
+    }
+
+    $(function() {
+      $('#pause').click(function(event) {
+        if (stopped == 1) {
+          stopped = 0;
+          $('#pause').html('Pause');
+        } else {
+          stopped = 1;
+          $('#pause').html('Continue');
+        }
+      });
+      $('#quiet').click(function(event) {
+        DjOneModule = document.getElementById('gbox');
+        if (quiet == 1) {
+          quiet = 0;
+          $('#quiet').html('Quiet');
+        } else {
+          quiet = 1;
+          $('#quiet').html('Noisy');
+        }
+        DjOneModule.postMessage("quiet");
+      });
+      $('#go').click(function(event) {
+        DjOneModule.postMessage("c/" + $("#count").val());
+      });
+    });
+
+  </script>
+</head>
+
+<body onload="pageDidLoad()">
+<!-- <h2>Native Client Module DjTwo (!)</h2> -->
+<table>
+  <tr>
+    <td width="120px">
+      <div id="two">
+        # boxes
+        <input type="text" id="count" name="count" value="100" size="6"></input>
+        <button type="button" id="go">Go</input>
+      </div>
+    </td>
+    <td width="60px">
+      <div id="two">
+        <button type="button" id="pause">Pause</input>
+      </div>
+    </td>
+    <td width="60px">
+      <div id="two">
+        <button type="button" id="quiet">Noisy</input>
+      </div>
+    </td>
+    <td width="120px">
+      <div id="two">
+        <div id="status_field">NO-STATUS</div>
+      </div>
+    </td>
+    <td>
+      <div id="two">
+        <form name="form">
+          FPS <input type="test" size="7" name="fps" style="display: on" />
+          <input type="test" size="120" name="pi" style="display: none" />
+          <input type="test" size="120" name="msg2" style="display: none" />
+          <input type="test" size="120" name="msg1" style="display: none" />
+        </form>
+      </div>
+    </td>
+    <td>
+      <div id="one">
+        You need to be running a recent chrome, and enter "about:flags"
+        <a href='http://code.google.com/chrome/nativeclient/docs/running.html'>(How to do this)</a>
+        in the address bar, find "native client" about 10 items down, and
+        <em>enable</em> it.  Then restart your browser.  Left - click - and drag
+        to move the screen.  Right click to zoom out,  Shift - Right click to
+        zoom in.  click on the animated object, and hit any letter to 'shuffle'
+      </div>
+    </td>
+  </tr>
+</table>
+
+  <!-- Load the published .nexe.  This includes the 'nacl' attribute which
+  shows how to load multi-architecture modules.  Each entry in the "nexes"
+  object in the .nmf manifest file is a key-value pair: the key is the
+  instruction set architecture ('x86-32', 'x86-64', etc.); the value is a URL
+  for the desired NaCl module.
+  To load the debug versions of your .nexes, set the 'nacl' attribute to the
+  _dbg.nmf version of the manifest file.
+
+  Note: Since this NaCl module does not use any real-estate in the browser,
+  it's width and height are set to 0.
+
+  Note: The <EMBED> element is wrapped inside a <DIV>, which has a 'load'
+  event listener attached.  This wrapping method is used instead of attaching
+  the 'load' event listener directly to the <EMBED> element to ensure that the
+  listener is active before the NaCl module 'load' event fires.
+  -->
+  <div id="listener">
+    <script type="text/javascript">
+       document.getElementById('listener')
+          .addEventListener('load', moduleDidLoad, true);
+    </script>
+
+    <embed name="nacl_module"
+       id="gbox"
+       width=1200 height=700
+       src="gbox.nmf"
+       type="application/x-nacl" />
+  </div>
+  <br />
+</p>
+
+</body>
+</html>

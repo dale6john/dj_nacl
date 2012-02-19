@@ -12,7 +12,7 @@ import string
 
 nacl_env = make_nacl_env.NaClEnvironment(use_c_plus_plus_libs=True)
 
-nacl_env.Append(tools=['nacl_tools'], CXXFLAGS='-DPARANOID=0')
+nacl_env.Append(tools=['nacl_tools'], CXXFLAGS=['-DPARANOID=0', '-I../util'])
 
 ver=datetime.now().strftime("%Y%m%d-%H%M%S")
 nacl_env.Append(tools=['nacl_tools'], CXXFLAGS='-DVERSION=\\"' + ver + '\\"')

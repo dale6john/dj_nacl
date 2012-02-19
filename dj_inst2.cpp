@@ -11,16 +11,18 @@ namespace dj {
     std::string message = var_message.AsString();
     pp::Var var_reply;
     if (message == kHelloString) {
+      theLog.info("message: '%s'", message.c_str());
       Hello();
-    }
-    if (message == kPaintMethodId) {
+    } else if (message == kPaintMethodId) {
       Paint();
-    }
-    if (message == kClockMethodId) {
+    } else if (message == kClockMethodId) {
       Clock();
-    }
-    if (message == "quiet") {
+    } else if (message == "quiet") {
+      theLog.info("message: '%s'", message.c_str());
       Quiet();
+    } else {
+      theLog.info("other message: '%s'", message.c_str());
+      Other(message);
     }
   }
 
@@ -248,15 +250,17 @@ namespace dj {
       return;
     }
     FlushPixelBuffer();
-    // Post the current estimate of Pi back to the browser.
-    //pp::Var pi_estimate(pi());
-    // Paint() is called on the main thread, so no need for CallOnMainThread()
-    // here.  It's OK to just post the message.
-    //PostMessage(pi_estimate);
-    //if (m_count < 999999) {
-    M m(this);
-    sprintf(m.buf, "~[%s]", m_text.c_str());
-    //}
+
+    uint32_t now = (int) time(NULL);
+    if (m_lasttime != now) {
+      char buf[12];
+      sprintf(buf, "/%d %s", m_timecount, (now & 0x1) ? "-" : "|");
+      pp::Var var_reply = pp::Var(buf);
+      PostMessage(var_reply);
+      m_timecount = 0;
+      m_lasttime = now;
+    }
+    m_timecount++;
   }
 
   void DjTwoInstance::FlushPixelBuffer() {
@@ -284,6 +288,15 @@ namespace dj {
 
   void DjTwoInstance::Quiet() {
     m_board->quiet();
+  }
+
+  void DjTwoInstance::Other(std::string s) {
+    if (s.substr(0,2) == "c/" && s.size() > 2) {
+      //theLog.info("count: %s", s.c_str());
+      uint32_t count = atoi(s.substr(2).c_str());
+      theLog.info("count: %d", count);
+      m_board->init(count);
+    }
   }
 
   void DjTwoInstance::Click(uint32_t from_x, uint32_t from_y) {
@@ -446,6 +459,18 @@ namespace dj {
                 dj->add_sound(outcome, speed, area, dj->getBoard());
               }
             }
+          }
+          break;
+        case BOUNCE_GROUND2:
+          {
+            // from 10kHz to 1kHz
+            // 4 samples to 40 samples
+            //if (speed > 0.5) {
+            //  if (limit >= 0) {
+                limit--;
+                dj->add_sound(outcome, speed, area, dj->getBoard());
+            //  }
+            //}
           }
           break;
         case BOUNCE_WALL:

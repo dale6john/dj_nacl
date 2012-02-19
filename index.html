@@ -3,6 +3,17 @@
 <head>
   <title>DjOne!</title>
 
+  <style type="text/css">
+    div#one {
+      border: 1px solid blue;
+      padding: 5px;
+    }
+    div#two {
+      border: 1px solid green;
+      padding: 5px;
+    }
+  </style>
+
   <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
   <script type="text/javascript">
     DjOneModule = null;  // Global application object.
@@ -10,7 +21,7 @@
     var clockInterval = null;
     var stopped = 0;
     var quiet = 1;
-    statusText = 'NO-STATUS';
+    var num_boxes = 100;
 
     // When the NaCl module has loaded, hook up an event listener to handle
     // messages coming from it via PPB_Messaging.PostMessage() (in C) or
@@ -20,16 +31,17 @@
       DjOneModule.addEventListener('message', handleMessage, false);
       updateStatus('SUCCESS');
       DjOneModule.postMessage('hello');
+      DjOneModule.postMessage('c/100');
       paintInterval = setInterval(function() {
           if (stopped == 0) {
             DjOneModule.postMessage("paint");
           }
-        }, 30);
+        }, 25);
       clockInterval = setInterval(function() {
           if (stopped == 0) {
             DjOneModule.postMessage("clock");
           }
-        }, 30);
+        }, 25);
     }
 
     // The 'message' event handler.  This handler is fired when the NaCl module
@@ -38,7 +50,9 @@
     // simply displays the content of the message in an alert panel.
     function handleMessage(message_event) {
       //document.form.pi.value = message_event.data;
-      if (message_event.data.substring(0,1) == "_") {
+      if (message_event.data.substring(0,1) == "/") {
+        document.form.fps.value = message_event.data.substr(1);
+      } else if (message_event.data.substring(0,1) == "_") {
         document.form.msg2.value = message_event.data;
       } else if (message_event.data.substring(0,1) == "+") {
         document.form.msg1.value = message_event.data;
@@ -87,7 +101,7 @@
         }
       });
       $('#quiet').click(function(event) {
-        // DjOneModule = document.getElementById('dj_two');
+        DjOneModule = document.getElementById('dj_two');
         if (quiet == 1) {
           quiet = 0;
           $('#quiet').html('Quiet');
@@ -97,31 +111,59 @@
         }
         DjOneModule.postMessage("quiet");
       });
+      $('#go').click(function(event) {
+        DjOneModule.postMessage("c/" + $("#count").val());
+      });
     });
 
   </script>
 </head>
 
 <body onload="pageDidLoad()">
-<h2>Native Client Module DjTwo (!)</h2>
+<!-- <h2>Native Client Module DjTwo (!)</h2> -->
 <table>
   <tr>
-    <td width='85%'>
-      Need to be running a recent chrome, and enter "about:flags"
-      <a href='http://code.google.com/chrome/nativeclient/docs/running.html'>(How to do this)</a>
-      in the address bar, find "native client" about 10 items down, and
-      <em>enable</em> it.  Then restart your browser.  Left - click - and drag
-      to move the screen.  Right click to zoom out,  Shift - Right click to
-      zoom in.  click on the animated object, and hit any letter to 'shuffle'
+    <td width="120px">
+      <div id="two">
+        # boxes
+        <input type="text" id="count" name="count" value="100" size="6"></input>
+        <button type="button" id="go">Go</input>
+      </div>
     </td>
-    <td width='5%'>
-      <button type="button" id="pause">Pause</input>
+    <td width="60px">
+      <div id="two">
+        <button type="button" id="pause">Pause</input>
+      </div>
     </td>
-    <td width='5%'>
-      <button type="button" id="quiet">Noisy</input>
+    <td width="60px">
+      <div id="two">
+        <button type="button" id="quiet">Noisy</input>
+      </div>
     </td>
-    <td width='5%'>
-      <div id="status_field">NO-STATUS</div>
+    <td width="120px">
+      <div id="two">
+        <div id="status_field">NO-STATUS</div>
+      </div>
+    </td>
+    <td>
+      <div id="two">
+        <form name="form">
+          FPS <input type="test" size="7" name="fps" style="display: on" />
+          <input type="test" size="120" name="pi" style="display: none" />
+          <input type="test" size="120" name="msg2" style="display: none" />
+          <input type="test" size="120" name="msg1" style="display: none" />
+        </form>
+      </div>
+    </td>
+    <td>
+      <div id="one">
+        You need to be running a recent chrome, and enter "about:flags"
+        <a href='http://code.google.com/chrome/nativeclient/docs/running.html'>(How to do this)</a>
+        in the address bar, find "native client" about 10 items down, and
+        <em>enable</em> it.  Then restart your browser.  Left - click - and drag
+        to move the screen.  Right click to zoom out,  Shift - Right click to
+        zoom in.  click on the animated object, and hit any letter to 'shuffle'
+      </div>
     </td>
   </tr>
 </table>
@@ -155,11 +197,6 @@
        type="application/x-nacl" />
   </div>
   <br />
-  <form name="form">
-    <input type="test" size="120" name="pi" />
-    <input type="test" size="120" name="msg2" />
-    <input type="test" size="120" name="msg1" />
-  </form>
 </p>
 
 </body>

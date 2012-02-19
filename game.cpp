@@ -27,12 +27,38 @@ namespace dj {
           m_ascii(ascii, 10, 20),
           m_display(&m_view, &m_ascii),
           m_step(0), m_sound(false),
-          m_bang(0), m_thuds(0), m_quiet(false)
+          m_bang(0), m_thuds(0), m_quiet(false),
+          m_outcomes(NULL)
   {
+    init(1000); // create box elements
+    m_music_sample_ix = 0;
+    m_debug[0] = '\0';
+    //for (uint32_t i = 0; i < m_boxes * 100; i++) 
+    //  m_outcomes[i] = NONE;
+
+    m_canvas.usable(0, 200, m_sz_x - 150, m_sz_y); // main canvas
+    m_sound_canvas.usable(m_sz_x - 150, 0, m_sz_x, m_sz_y); // for clipping
+    m_text_canvas.usable(0, 0, m_sz_x - 150, 200);
+    m_canvas_set.add(m_canvas, C_MAIN);
+    m_canvas_set.add(m_sound_canvas, C_SOUND);
+    m_canvas_set.add(m_text_canvas, C_TEXT);
+
+    m_view.center(0,0,1.0); // logical units
+    //m_view.center(0,0); // logical units
+
+    InitSimulation();
+  }
+
+  void GameState::init(uint32_t boxes) {
     srand48(1);
-    // up to 15k
-    m_boxes = 9000;
-    for (uint32_t i = 0; i < m_boxes; i++) {
+    m_players.clear();
+    m_boxes = boxes; // up to 15k
+    if (m_outcomes) {
+      delete m_outcomes;
+    }
+    m_outcomes = new PlayAffect[m_boxes * 100];
+    m_outcome_ix = 0;
+    for (uint32_t i = 0; i < m_boxes / 2; i++) {
       double x = 1.0 + drand48() * 149.0;
       double y = 1.0 + drand48() * 149.0;
       double w = drand48() * 2.0 + 4.0;
@@ -56,24 +82,29 @@ namespace dj {
       }
       m_players.push_back(box);
     }
-    m_music_sample_ix = 0;
-    m_outcomes = new PlayAffect[m_boxes * 100];
-    m_outcome_ix = 0;
-    m_debug[0] = '\0';
-    //for (uint32_t i = 0; i < m_boxes * 100; i++) 
-    //  m_outcomes[i] = NONE;
+    for (uint32_t i = 0; i < m_boxes / 2; i++) {
+      double x = 1.0 + drand48() * 149.0;
+      double y = 1.0 + drand48() * 149.0;
+      double r = drand48() * 3.0 + 3.0;
 
-    m_canvas.usable(0, 200, m_sz_x - 150, m_sz_y); // main canvas
-    m_sound_canvas.usable(m_sz_x - 150, 0, m_sz_x, m_sz_y); // for clipping
-    m_text_canvas.usable(0, 0, m_sz_x - 150, 200);
-    m_canvas_set.add(m_canvas, C_MAIN);
-    m_canvas_set.add(m_sound_canvas, C_SOUND);
-    m_canvas_set.add(m_text_canvas, C_TEXT);
-
-    m_view.center(0,0,1.0); // logical units
-    //m_view.center(0,0); // logical units
-
-    InitSimulation();
+      PCircle *circle = new PCircle(x + 250, y + 300, r);
+      double scale = drand48() + 0.5;
+      double angle = (drand48() * 2 - 1) * M_PI;
+      //Point speed(pow(drand48() * 4.0, 3.0), pow(drand48() * 4.0, 3.0));
+      Point speed(0,0);
+      //circle->m_rect.scale_to(scale);
+      //circle->m_rect.rotate_to(angle);
+      circle->m_circle.color(0xff00007f 
+        + (((int)floor(x/150.0*256.0)) << 16)
+        + (((int)floor(y/150.0*256.0)) << 8));
+      if (true || lrand48() % 2 == 1) {
+        circle->m_speed = speed;
+        circle->m_rotation = (drand48() - 0.5) / 4.0;
+      } else {
+        circle->m_rotation = 0;
+      }
+      m_players.push_back(circle);
+    }
   }
 
   void GameState::redraw(uint32_t* pixel_bits) {

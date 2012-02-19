@@ -10,6 +10,7 @@ class BoundingBox {
   BoundingBox() {}
   BoundingBox(Point p) : lower_left(p), upper_right(p) {}
 
+  // public ??
   Point lower_left;
   Point upper_right;
  

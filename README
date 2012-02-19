@@ -67,7 +67,6 @@ types.h - cruft
 
 TODO
 ====
-change tone based on square size
-put boundaries on windows
-fix zoom and pan
+circles and triangles
+change tone based on square size and color?
 

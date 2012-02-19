@@ -84,6 +84,7 @@ namespace dj {
     uint32_t m_turns;
 
    public:
+    void init(uint32_t boxes);
     void drag(device_t x, device_t y, int32_t dx, int32_t dy);
     void zoom(device_t x, device_t y, double scale = 2.0);
     void click(device_t x, device_t y);

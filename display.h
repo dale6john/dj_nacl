@@ -46,7 +46,8 @@ namespace dj {
       if (digit > '~') digit = '~';
       for (uint32_t x = 0; x < m_width; x++) {
         for (uint32_t y = 0; y < m_height; y++) {
-          uint32_t c = Bitmap::at(15 + (digit - ' ') * m_width + x, y, 0);
+          // plus one below for funky offset into font-bitmap
+          uint32_t c = Bitmap::at(15 + (digit - ' ') * m_width + x + 1, y, 0);
           uint32_t r = (c & 0xff0000) >> 16;
           uint32_t g = (c & 0xff00) >> 8;
           uint32_t b = (c & 0xff);

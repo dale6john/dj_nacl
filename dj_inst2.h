@@ -24,7 +24,7 @@ class DjTwoInstance : public pp::Instance {
   explicit DjTwoInstance(PP_Instance instance) 
       : pp::Instance(instance), m_count(0), m_mc(0), 
         m_board(NULL), m_ticks(0), m_time_at_mouse_down(0),
-        m_shift(false)
+        m_shift(false), m_lasttime(0), m_timecount(0)
         {}
   virtual ~DjTwoInstance() {
     if (m_board) delete m_board;
@@ -108,7 +108,7 @@ class DjTwoInstance : public pp::Instance {
       if (valid_cache) 
         cache = &sound_cache[cache_ix * sound_cache_each];
       cache_tries++;
-      theLog.info("C[%d,%d=>%d]", six, aix, cache_ix);
+      //theLog.info("C[%d,%d=>%d]", six, aix, cache_ix);
 
       if (!have_cache) {
         double theta = 0.0;
@@ -118,7 +118,73 @@ class DjTwoInstance : public pp::Instance {
 
         cache_miss++;
         double volume = 0.0;
-        for (uint32_t j = 0; j < (six + 40) * 70; j++) {
+        for (int32_t j = 0; j < (six + 40) * 70; j++) {
+          if (volume < 0.2)
+            volume += 0.004;
+          double sample = volume * volume2 * sin(theta);
+          double sample2 = 0.3 * volume * volume2 * sin(theta2);
+          double sample3 = 0.0;
+          if (aix < 4)
+            sample3 = 1.4 * volume * volume2 * sin(theta3);
+          else if (six > 25)
+            sample3 = 0.8 * volume * volume2 * sin(theta3);
+          board->setSoundSample(at + j, sample + sample2 + sample3);
+          if (valid_cache) {
+            cache[j] = sample + sample2 + sample3;
+            sound_cache_sz[cache_ix]++;
+          }
+
+          theta += delta;
+          theta2 += delta * 1.5;
+          theta3 += delta * 3;
+          if (theta > 2 * M_PI) theta -= 2 * M_PI;
+          if (theta2 > 2 * M_PI) theta2 -= 2 * M_PI;
+          if (delta > 15 * M_PI / 180)
+            delta *= 0.999;
+          if (volume2 > 0.2)
+            volume2 *= 0.99;
+        }
+      } else {
+        // apply cache
+        cache_hit++;
+        for (uint32_t j = 0; j < sound_cache_sz[cache_ix]; j++) {
+          double sample = cache[j];
+          board->setSoundSample(at + j, sample);
+        }
+      }
+    }
+    if (outcome == BOUNCE_GROUND2) {
+      //double norm_speed = 1 + (speed - ;
+      double base_volume = 0.08;
+      double volume2 = base_volume * sqrt(norm_speed) / 2 * norm_area;
+      uint32_t at = lrand48() % 2000;
+
+      //int32_t six = uint32_t(floor(speed * 10));
+      int32_t six = uint32_t(floor(norm_speed * 20));
+      if (six > 31) six = 31;
+      int32_t aix = uint32_t(floor(norm_area * 10));
+      if (aix > 15) aix = 15;
+      int32_t cache_ix = aix | (six << 4); // 9 bits
+
+      if (cache_ix >= int32_t(sound_cache_items))
+        cache_ix = sound_cache_items - 1; // really??
+      double *cache = NULL;
+      bool valid_cache = true;
+      bool have_cache = valid_cache && (sound_cache_sz[cache_ix] > 0);
+      if (valid_cache) 
+        cache = &sound_cache[cache_ix * sound_cache_each];
+      cache_tries++;
+      //theLog.info("C[%d,%d=>%d]", six, aix, cache_ix);
+
+      if (!have_cache) {
+        double theta = 0.0;
+        double theta2 = 0.0;
+        double theta3 = 0.0;
+        double delta = 50 * M_PI / 180 / double(5 + aix);
+
+        cache_miss++;
+        double volume = 0.0;
+        for (int32_t j = 0; j < (six + 40) * 70; j++) {
           if (volume < 0.2)
             volume += 0.004;
           double sample = volume * volume2 * sin(theta);
@@ -164,13 +230,6 @@ class DjTwoInstance : public pp::Instance {
   // to fit the new size as well.
   virtual void DidChangeView(const pp::Rect& position, const pp::Rect& clip);
 
-  // Called by the browser to handle the postMessage() call in Javascript.
-  // The message in this case is expected to contain the string 'paint', and
-  // if so this invokes the Paint() function.  If |var_message| is not a string
-  // type, or contains something other than 'paint', this method posts an
-  // invalid value for Pi (-1.0) back to the browser.
-  //virtual void HandleMessage(const pp::Var& var_message);
-
   // Return a pointer to the pixels represented by |pixel_buffer_|.  When this
   // method returns, the underlying |pixel_buffer_| object is locked.  This
   // call must have a matching UnlockPixels() or various threading errors
@@ -188,6 +247,7 @@ class DjTwoInstance : public pp::Instance {
   void Paint();
   void Clock();
   void Quiet();
+  void Other(std::string);
   void Drag(uint32_t from_x, uint32_t from_y, int32_t dx, int32_t dy);
   void Click(uint32_t from_x, uint32_t from_y);
   void ZoomIn(uint32_t from_x, uint32_t from_y);
@@ -253,6 +313,8 @@ class DjTwoInstance : public pp::Instance {
   PP_TimeTicks m_time_at_mouse_down;
   pp::Point m_mouse_down;
   bool m_shift;
+  uint32_t m_lasttime;
+  uint32_t m_timecount;
 };
 
 }

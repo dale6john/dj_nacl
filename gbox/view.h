@@ -78,6 +78,8 @@ class View {
   void border();
 
   void draw(Drawable& gobi);
+  void draw_filled(Drawable& gobi, BoundingBox& box);
+  void draw_frame(Drawable& gobi, BoundingBox& box);
 
   //void draw(Canvas& canvas, uint32_t step, GobGroup& ggrp);
 

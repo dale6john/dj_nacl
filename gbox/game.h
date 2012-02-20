@@ -89,7 +89,7 @@ namespace dj {
     void zoom(device_t x, device_t y, double scale = 2.0);
     void click(device_t x, device_t y);
     void quiet();
-    void key(int k);
+    void key(int k, uint8_t sca, const char *dc, const char *cc, const char *co);
     void getCenter(double& x, double& y);
     void step();
     inline void set(uint32_t* pixel_bits, device_t x, device_t y, uint32_t color) {
@@ -188,6 +188,10 @@ namespace dj {
     View m_view;
     Ascii m_ascii;
     DisplayContext m_display;
+
+    Player* m_selected;
+    bool m_editor_on;
+    Program* m_selected_program;
 
     uint32_t m_step;
     int32_t m_sample_frame_count;

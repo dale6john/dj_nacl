@@ -1,5 +1,5 @@
-#ifndef __dj_inst__
-#define __dj_inst__
+#ifndef __gbox__h__
+#define __gbox__h__
 
 #include "game.h"
 
@@ -23,8 +23,14 @@ class GboxInstance : public pp::Instance {
   /// @param[in] instance the handle to the browser-side plugin instance.
   explicit GboxInstance(PP_Instance instance) 
       : pp::Instance(instance), m_count(0), m_mc(0), 
-        m_board(NULL), m_ticks(0), m_time_at_mouse_down(0),
-        m_shift(false), m_lasttime(0), m_timecount(0)
+        m_board(NULL), m_ticks(0), 
+        m_time_at_mouse_down0(0),
+        m_time_at_mouse_down2(0),
+        m_mouse_down0(0,0),
+        m_mouse_down2(0,0),
+        m_key_shift(false), m_key_ctrl(false), m_key_alt(false),
+        m_key_left_apple(false), m_key_right_apple(false),
+        m_lasttime(0), m_timecount(0)
         {}
   virtual ~GboxInstance() {
     if (m_board) delete m_board;
@@ -81,6 +87,7 @@ class GboxInstance : public pp::Instance {
     }
     cache_hit = cache_miss = cache_tries = 0;
   }
+  // FIXME: remove this
   void add_sound(play_t outcome, double speed, double area, GameState* board) {
     double norm_area = 1 + (area - 50.0) / 30.0 ; // ~ mean 1, std 0.2
     if (norm_area < 0.0) norm_area = 0.0;
@@ -248,10 +255,11 @@ class GboxInstance : public pp::Instance {
   void Clock();
   void Quiet();
   void Other(std::string);
-  void Drag(uint32_t from_x, uint32_t from_y, int32_t dx, int32_t dy);
-  void Click(uint32_t from_x, uint32_t from_y);
-  void ZoomIn(uint32_t from_x, uint32_t from_y);
-  void ZoomOut(uint32_t from_x, uint32_t from_y);
+  void Drag(uint32_t from_x, uint32_t from_y, int32_t dx, int32_t dy, uint8_t sca);
+  void Click(uint32_t from_x, uint32_t from_y, uint8_t button, uint8_t shift, double downtime);
+  void Key(uint32_t key, uint8_t sca, const char *dc, const char *cc, const char *co);
+  //void ZoomIn(uint32_t from_x, uint32_t from_y);
+  //void ZoomOut(uint32_t from_x, uint32_t from_y);
 
   bool quit() const {
     return false;
@@ -295,6 +303,14 @@ class GboxInstance : public pp::Instance {
     return graphics_2d_context_ != NULL;
   }
 
+  uint8_t sca() const { // shift - control - alt
+      return (m_key_shift ? 0x01 : 0x00)
+           + (m_key_ctrl ? 0x02 : 0x00)
+           + (m_key_alt ? 0x04 : 0x00)
+           + (m_key_left_apple ? 0x08 : 0x00)
+           + (m_key_right_apple ? 0x10 : 0x00);
+  }
+
   mutable pthread_mutex_t pixel_buffer_mutex_;
   pp::Graphics2D* graphics_2d_context_;
   pp::ImageData* pixel_buffer_;
@@ -310,11 +326,18 @@ class GboxInstance : public pp::Instance {
   GameState* m_board;
   pp::Core* m_core;
   uint32_t m_ticks;
-  PP_TimeTicks m_time_at_mouse_down;
-  pp::Point m_mouse_down;
-  bool m_shift;
+  PP_TimeTicks m_time_at_mouse_down0;
+  PP_TimeTicks m_time_at_mouse_down2;
+  pp::Point m_mouse_down0;
+  pp::Point m_mouse_down2;
+  bool m_key_shift;
+  bool m_key_ctrl;
+  bool m_key_alt;
+  bool m_key_left_apple;
+  bool m_key_right_apple;
   uint32_t m_lasttime;
   uint32_t m_timecount;
+  uint8_t m_down_sca;
 };
 
 }

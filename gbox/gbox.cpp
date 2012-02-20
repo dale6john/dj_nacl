@@ -6,6 +6,65 @@
 
 namespace dj {
 
+  const char* codes[] = {
+    "", "", "", "", "", "", "", "", "backspace", "tab", "", "", "", "return",
+    "", "", "SHIFT", "CTL", "ALT", "", "", "", "", "", "", "", "", "escape",
+    "", "", "", "", "space", "pgup", "pgdown", "end", "home", "left", "up",
+    "right", "down", "", "", "", "", "insert", "delete", "", "0", "1", "2",
+    "3", "4", "5", "6", "7", "8", "9", "", "", "", "", "", "", "", "A", "B",
+    "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q",
+    "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "leftapple", "", "rightapple", "", "", 
+    "k0", "k1", "k2", "k3", "k4", "k5", "k6", "k7", "k8", "k9", 
+      "multiply", "add", "", "subtract", "decimal", "divide", 
+    "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12",
+    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "colon", "equal", "comma", "dash", "period",
+    "slash", "tilde", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "", "", "", "opensq", "backslash",
+    "closesq", "quote" 
+  };
+  const char* display_codes[] = {
+    "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "  ", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "0)", "1!", "2@",
+    "3#", "4$", "5%", "6^", "7&", "8*", "9(", "", "", "", "", "", "", "", "aA", "bB",
+    "cC", "dD", "eE", "ff", "gG", "hH", "iI", "jJ", "kK", "lL", "mM", "nN", "oO", "pP", "qQ",
+    "rR", "sS", "tT", "uU", "vV", "wW", "xX", "yY", "zZ", "", "", "", "", "",
+    "00", "11", "22", "33", "44", "55", "66", "77", "88", "99",
+      "**", "++", "", "--", "..", "//",
+    "", "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", ";:", "=+", ",<", "-_", ".>",
+    "/?", "`~", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "", "", "", "[{", "\\|",
+    "]}", "'\"" 
+  };
+  const char* control_codes[] = {
+    "", "", "", "", "", "", "", "", "backspace", "tab", "", "", "", "return",
+    "", "", "SHIFT", "CTL", "ALT", "", "", "", "", "", "", "", "", "escape",
+    "", "", "", "", "", "pgup", "pgdown", "end", "home", "left", "up",
+    "right", "down", "", "", "", "", "insert", "delete", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "leftapple", "", "rightapple", "", "", 
+    "", "", "", "", "", "", "", "", "", "",
+      "", "", "", "", "", "",
+    "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12",
+    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+    "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+    "", "" 
+  };
+
+
   void GboxInstance::HandleMessage(const pp::Var& var_message) {
     if (!var_message.is_string()) return;
     std::string message = var_message.AsString();
@@ -33,6 +92,7 @@ namespace dj {
     case PP_INPUTEVENT_TYPE_KEYDOWN:
     case PP_INPUTEVENT_TYPE_KEYUP:
     case PP_INPUTEVENT_TYPE_CHAR:
+    case PP_INPUTEVENT_TYPE_CONTEXTMENU:
       {
         pp::KeyboardInputEvent key_event(event);
         ret = HandleKeyboard(key_event);
@@ -44,6 +104,7 @@ namespace dj {
     case PP_INPUTEVENT_TYPE_MOUSEUP:
     case PP_INPUTEVENT_TYPE_MOUSEENTER:
     case PP_INPUTEVENT_TYPE_MOUSELEAVE:
+    case PP_INPUTEVENT_TYPE_WHEEL:
       {
         pp::MouseInputEvent mouse_event(event);
         ret = HandleMouse(mouse_event);
@@ -51,35 +112,80 @@ namespace dj {
       break;
 
     case PP_INPUTEVENT_TYPE_UNDEFINED:
-    case PP_INPUTEVENT_TYPE_WHEEL:
     case PP_INPUTEVENT_TYPE_RAWKEYDOWN:
-    case PP_INPUTEVENT_TYPE_CONTEXTMENU:
       ret = false;
 
     default:
       break;
     }
-    M m(this);
-    sprintf(m.buf, "_Input Event: (%s a) et:%d handled:%d count:%d", kVersion, event.GetType(), ret, ++m_mc);
+
+#if 1
+    if (!ret && sca() == 0x3)
+      theLog.info("_Input Event: (%s a) et:%d handled:%d count:%d",
+        kVersion, event.GetType(), ret, ++m_mc);
+#endif
     return ret;
   }
 
   bool GboxInstance::HandleKeyboard(const pp::KeyboardInputEvent& event) {
     uint32_t key = event.GetKeyCode();
-    M m(this);
-    sprintf(m.buf, "+Input Keyboard: (%s a) et:%d key:%d/%c count:%d", kVersion, event.GetType(), key, key, m_mc);
+    uint32_t type = event.GetType();
+    uint32_t mods = 0; // event.GetModifiers();
+
+    theLog.info("+Input Keyboard: ty:%d mods:%d key:%d/%c (sca:%d)", 
+        type, mods, key, key, m_key_shift);
+
+    if (key == 27) return false; // let escape through
+
+    if (type == 9) return false; // not sure what this is for
 
     if (key == 16) { // shift
-      if (event.GetType() == 7) m_shift = true;
-      if (event.GetType() == 8) m_shift = false;
+      if (type == 7) m_key_shift = true;
+      if (type == 8) m_key_shift = false;
+      return true;
+    }
+    if (key == 17) { // ctrl
+      if (type == 7) m_key_ctrl = true;
+      if (type == 8) m_key_ctrl = false;
+      return true;
+    }
+    if (key == 18) { // alt
+      if (type == 7) m_key_alt = true;
+      if (type == 8) m_key_alt = false;
+      return true;
+    }
+    if (key == 91) { // left apple
+      if (type == 7) m_key_left_apple = true;
+      if (type == 8) m_key_left_apple = false;
+      return true;
+    }
+    if (key == 93) { // right apple
+      if (type == 7) m_key_right_apple = true;
+      if (type == 8) m_key_right_apple = false;
+      return true;
     }
 
-    if ((key >= 'A' && key <= 'Z') || (key >= 'a' && key <= 'z')) {
-      m_board->key(key);
-      m_board->m_bang = 0;
+    if (type == 7) m_down_sca = sca(); // shift-ctrl-alt on only keydown matters
+
+    const char *dc = key < 223 ? display_codes[key] : "";
+    const char *cc = key < 223 ? control_codes[key] : "";
+    const char *co = key < 223 ? codes[key] : "";
+
+    theLog.info("%d/ dc: '%s'  cc: '%s'  co: '%s'", key, dc, cc, co);
+
+    if (type == 8) {
+      if (strlen(co)) {
+        Key(key, m_down_sca, dc, cc, co);
+        return true;
+      }
+    }
+    if (key == 8 || key == 9 || key == 13 || key == 27 || key == 37 || key == 38) {
+      return true;
     }
 
-    if (key >= 'A' && key <= 'Z') return true;
+    //if (type != 7)
+    //  theLog.info("+Input Keyboard: et:%d key:%d/%c (unhandled)", type, key, key);
+
     return false;
   }
 
@@ -87,65 +193,45 @@ namespace dj {
     PP_InputEvent_MouseButton button = event.GetButton();
     int32_t clicks = event.GetClickCount();
     pp::Point pt = event.GetPosition();
+    int32_t type = event.GetType();
 
-    //M m(this);
-    if (button != PP_INPUTEVENT_MOUSEBUTTON_NONE) {
-      // button
-      //sprintf(m.buf, "+Input Button: (%s a) et:%d handled:%d count:%d", event.GetType(), button, m_mc);
-    } else if (clicks) {
-      //sprintf(m.buf, "+Input Click: (%s a) et:%d at:%d,%d count:%d", event.GetType(), pt.x(), pt.y(), m_mc);
-    } else {
-      //sprintf(m.buf, "+Input OTHER: (%s a) et:%d at:%d,%d count:%d", event.GetType(), pt.x(), pt.y(), m_mc);
-    }
+    if (sca() == 0x3)
+      theLog.info("+Mouse:  ty:%d at:%d,%d but:%d clicks:%d",
+            type, pt.x(), pt.y(), button, clicks);
+
     if (event.GetType() == PP_INPUTEVENT_TYPE_MOUSEDOWN && button == 0) {
-      M n(this);
-      sprintf(n.buf, "+Input MouseDown: (%s a) et:%d at:%d,%d count:%d (%p/%p) %d", kVersion, event.GetType(), pt.x(), pt.y(), m_mc, this, m_board, button);
-      m_mouse_down = pt;
-      m_time_at_mouse_down = m_core->GetTimeTicks();
+      m_mouse_down0 = pt;
+      m_time_at_mouse_down0 = m_core->GetTimeTicks();
+    }
+    if (event.GetType() == PP_INPUTEVENT_TYPE_MOUSEDOWN && button == 2) {
+      m_mouse_down2 = pt;
+      m_time_at_mouse_down2 = m_core->GetTimeTicks();
     }
     if (event.GetType() == PP_INPUTEVENT_TYPE_MOUSEMOVE) {
-      if (m_time_at_mouse_down) {
+      if (m_time_at_mouse_down0) {
         // drag dynamics logic
         PP_TimeTicks now = m_core->GetTimeTicks();
         bool is_drag = false;
-        double dx = pt.x() - m_mouse_down.x();
-        double dy = pt.y() - m_mouse_down.y();
+        double dx = pt.x() - m_mouse_down0.x();
+        double dy = pt.y() - m_mouse_down0.y();
         if (sqrt(dx * dx + dy * dy) > 30) is_drag = true;
-        if (now - m_time_at_mouse_down > 0.02) is_drag = true;
+        if (now - m_time_at_mouse_down0 > 0.2) is_drag = true;
         if (is_drag) {
-          Drag(m_mouse_down.x(), m_mouse_down.y(),
-                    m_mouse_down.x() - pt.x(), m_mouse_down.y() - pt.y());
-          m_mouse_down = pt;
+          Drag(m_mouse_down0.x(), m_mouse_down0.y(),
+                    m_mouse_down0.x() - pt.x(), m_mouse_down0.y() - pt.y(), sca());
+          m_mouse_down0 = pt;
         }
       }
     }
-    if (event.GetType() == PP_INPUTEVENT_TYPE_MOUSEUP && button == 2) {
-      if (m_shift)
-        ZoomIn(pt.x(), pt.y());
-      else
-        ZoomOut(pt.x(), pt.y());
-    }
-    if (event.GetType() == PP_INPUTEVENT_TYPE_MOUSEUP && button == 0) {
-#if 0
+    if (event.GetType() == PP_INPUTEVENT_TYPE_MOUSEUP) {
       PP_TimeTicks now = m_core->GetTimeTicks();
-      bool is_drag = false;
-      double dx = pt.x() - m_mouse_down.x();
-      double dy = pt.y() - m_mouse_down.y();
-      if (sqrt(dx * dx + dy * dy) > 30) is_drag = true;
-      if (now - m_time_at_mouse_down > 0.5) is_drag = true;
-      if (is_drag) {
-          Drag(m_mouse_down.x(), m_mouse_down.y(),
-                    pt.x() - m_mouse_down.x(), pt.y() - m_mouse_down.y());
-          if (0) {
-            M n(this);
-            sprintf(n.buf, "+Input MouseUp: DRAG (%s a) et:%d at:%d,%d count:%d (%p/%p)  %3.3f time ticks", kVersion, event.GetType(), pt.x(), pt.y(), m_mc, this, m_board, now - m_time_at_mouse_down);
-          }
-      } else {
-        Click(m_mouse_down.x(), m_mouse_down.y());
-      }
-      //m_board->click(pt.x(), pt.y());
-#endif
-      m_time_at_mouse_down = 0;
+      double diff = now - (button == 0 ? m_time_at_mouse_down0 : m_time_at_mouse_down2);
+      Click(pt.x(), pt.y(), button, sca(), diff);
+
+      if (button == 0)
+        m_time_at_mouse_down0 = 0;
+      else
+        m_time_at_mouse_down2 = 0;
     }
     return true;
   }
@@ -299,41 +385,27 @@ namespace dj {
     }
   }
 
-  void GboxInstance::Click(uint32_t from_x, uint32_t from_y) {
-    //
-    M m(this);
-    double x, y;
-    m_board->getCenter(x, y);
-    sprintf(m.buf, "+[%s] CLICK  %d  @(%f,%f)", m_text.c_str(), m_ticks, x, y);
+  void GboxInstance::Click(uint32_t from_x, uint32_t from_y, uint8_t button, uint8_t sca, double downtime) {
+    theLog.info("CLICK (%d,%d) b:%d s:%d (dt:%3.9f)",
+        from_x, from_y, button, sca, downtime);
     m_board->click(from_x, from_y);
   }
 
-  void GboxInstance::Drag(uint32_t from_x, uint32_t from_y, int32_t dx, int32_t dy) {
-    //
-    double x, y;
-    m_board->getCenter(x, y);
-    M m(this);
-    sprintf(m.buf, "+[%s] DRAG  %d  (%d,%d) @(%f,%f)", m_text.c_str(), m_ticks, dx, dy, x, y);
+  void GboxInstance::Key(uint32_t key, uint8_t sca, const char *dc, const char *cc, const char *co) {
+    //theLog.info("KEY  %d/%c  sca:%d", key, key, sca);
+    //m_board->m_bang = 0;
+    m_board->key(key, sca, dc, cc, co);
+  }
+
+  void GboxInstance::Drag(uint32_t from_x, uint32_t from_y, int32_t dx, int32_t dy, uint8_t sca) {
+    theLog.info("DRAG  %d  (%d,%d) +/-(%d,%d)  sca:%d",
+          m_ticks, from_x, from_y, dx, dy, sca);
     m_board->drag(from_x, from_y, dx, dy);
   }
 
-  void GboxInstance::ZoomIn(uint32_t from_x, uint32_t from_y) {
-    m_board->zoom(from_x, from_y, 1.5);
-    double x, y;
-    m_board->getCenter(x, y);
-    M m(this);
-    sprintf(m.buf, "+[%s] ZOOM OUT  %d  @(%f,%f)", m_text.c_str(), m_ticks, x, y);
-  }
-
-  void GboxInstance::ZoomOut(uint32_t from_x, uint32_t from_y) {
-    m_board->zoom(from_x, from_y, 1/1.5);
-    double x, y;
-    m_board->getCenter(x, y);
-    M m(this);
-    sprintf(m.buf, "+[%s] ZOOM OUT  %d  @(%f,%f)", m_text.c_str(), m_ticks, x, y);
-  }
-
   // static
+  // FIXME: pass this along to the game
+  //
   void GboxInstance::SoundCallback(void *samples, uint32_t buffer_size, void* data) {
     GboxInstance* dj = reinterpret_cast<GboxInstance*>(data);
     //double freq = 440; // A above middle C

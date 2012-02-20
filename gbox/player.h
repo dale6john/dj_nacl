@@ -22,7 +22,7 @@
 #include "bitmap.h"
 #include "rectangle.h"
 #include "circle.h"
-
+#include "program.h"
 #include "display.h"
 
 //extern const uint32_t numbers[];
@@ -52,9 +52,15 @@ namespace dj {
 
   class Player {
    public:
-    Player() : m_x(0), m_y(0), m_step(0) {}
+    Player() 
+            : m_selected(false), m_x(0), m_y(0), m_step(0) {
+    }
+    Player(double x_, double y_, double h_) 
+            : m_selected(false), m_x(x_), m_y(y_), m_h(h_) {
+    }
     Player(const uint32_t *m, double x_, double y_, double h_, double sc_, uint32_t st_)
-            : m_x(x_), m_y(y_), m_h(h_ / 360.0 * 2.0 * 3.14159),
+            : m_selected(false),
+              m_x(x_), m_y(y_), m_h(h_ / 360.0 * 2.0 * 3.14159),
               m_scale(sc_), m_step(0), m_steps(st_) {
     }
     virtual ~Player() {}
@@ -62,11 +68,27 @@ namespace dj {
    public:
     virtual void draw(Canvas & canvas, DisplayContext & disp, bool debug) {
       // don't want to get here
-      canvas.set(2,2, 0xffffff1f);
-      canvas.set(2,3, 0xffffff1f);
-      canvas.set(3,2, 0xffffff1f);
-      canvas.set(3,3, 0xffffff1f);
       assert(!"wrong draw");
+    }
+    virtual void drawSelected(Canvas & canvas, DisplayContext & disp, bool debug) {
+      if (m_selected) {
+        BoundingBox bb(bbox());
+        View *view = disp.m_view;
+        Ascii *ascii = disp.m_ascii;
+        double x = (bb.lower_left.x + bb.upper_right.x) / 2.0;
+        double y = (bb.lower_left.y + bb.upper_right.y) / 2.0;
+        double dx = bb.upper_right.x - bb.lower_left.x;
+        double dy = bb.upper_right.y - bb.lower_left.y;
+        if (dx < dy) dx = dy;
+
+        Rectangle rect(Point(x, y), dx * 1.4, dx * 1.4);
+        rect.color(0xff7f7f7f);
+        rect.filled(false);
+        view->draw(rect);
+
+        //theLog.info("selected: %d [%3.3f,%3.3f]",
+        //    m_selected, bb.lower_left.x, bb.lower_left.y);
+      }
     }
     virtual void step(PlayAffect &ret) {
       if (++m_step >= m_steps)
@@ -75,23 +97,42 @@ namespace dj {
       ret.m_at.assign(m_x, m_y);
     }
     virtual void click() {}
+    virtual void selected(bool b) {
+      m_selected = b;
+    }
+    virtual bool selected() const { return m_selected; }
+    virtual BoundingBox bbox() { return BoundingBox(Point(0, 0)); }
+    double x() const { return m_x; }
+    double y() const { return m_y; }
+    double x(double _x) { m_x = _x; }
+    double y(double _y) { m_y = _y; }
+    Program* program() {
+      if (!m_program)
+        m_program = new Program();
+      return m_program; 
+    }
+    void program(Program* p) { m_program = p; }
 
    protected:
+    bool m_selected;
     double m_x; // TODO: if this is a group, then we can have location,
     double m_y; //  pivot, and scale.  othewise, just steps
     double m_h; // heading
     double m_scale; // muliplier for bitmap to logical co-ordinate translation
     uint32_t m_step;
     uint32_t m_steps;
+    Program* m_program;
   };
 
   class Box : public Player {
    public:
     Box(double x, double y, double w, double h) 
-        : m_speed(0), m_rotation(0.0), m_at(x, y), m_rect(m_at, w, h), angle(0.0) {
+        : Player(x, y, h), 
+          m_speed(0), m_rotation(0.0), m_at(x, y), m_rect(m_at, w, h), angle(0.0) {
     }
     virtual void draw(Canvas & canvas, DisplayContext & disp, bool debug) {
       disp.m_view->draw(m_rect);
+      drawSelected(canvas, disp, debug);
     }
     virtual void step(PlayAffect & ret) {
       ret.m_code = NONE;
@@ -122,7 +163,7 @@ namespace dj {
         m_speed.x -= force / 300.0;
 */
 
-      } else if (lrand48() % 12000 == 0) {
+      } else if (lrand48() % 120000 == 0) {
         // inactive cell, perhaps activate
         m_rotation = (drand48() - 0.5) / 10;
         m_speed.x = pow(drand48() * 3.0, 3.0);
@@ -159,6 +200,8 @@ namespace dj {
           ret.m_speed = m_speed.distance();
         }
       }
+      ((Player*)this)->x(m_rect.at().x);
+      ((Player*)this)->y(m_rect.at().y);
     }
     virtual void click() {
       // this is the 'shuffle'
@@ -166,6 +209,7 @@ namespace dj {
       m_speed = speed;
       m_rotation = (drand48() - 0.5) / 10;
     }
+    virtual BoundingBox bbox() { return m_rect.boundingBox(); }
 
    private:
    public:
@@ -183,6 +227,7 @@ namespace dj {
     }
     virtual void draw(Canvas & canvas, DisplayContext & disp, bool debug) {
       disp.m_view->draw(m_circle);
+      drawSelected(canvas, disp, debug);
     }
     virtual void step(PlayAffect & ret) {
       ret.m_code = NONE;
@@ -213,7 +258,7 @@ namespace dj {
         m_speed.x -= force / 300.0;
 */
 
-      } else if (lrand48() % 4000 == 0) {
+      } else if (lrand48() % 40000 == 0) {
         // inactive cell, perhaps activate
         m_rotation = (drand48() - 0.5) / 10;
         m_speed.x = pow(drand48() * 3.0, 3.0);
@@ -257,6 +302,7 @@ namespace dj {
       m_speed = speed;
       m_rotation = (drand48() - 0.5) / 10;
     }
+    virtual BoundingBox bbox() { return m_circle.boundingBox(); }
 
    private:
    public:

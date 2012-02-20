@@ -141,6 +141,7 @@ void View::draw(Drawable& gobi) {
   double x1 = m_lg_ur.x;
   double y0 = m_lg_ll.y;
   double y1 = m_lg_ur.y;
+  bool filled = gobi.filled();
 
   Point p0(x0, y0);
   Point p1(x1, y1);
@@ -171,6 +172,29 @@ void View::draw(Drawable& gobi) {
   intersection.show();
 #endif
 
+  if (filled)
+    draw_filled(gobi, intersection);
+  else
+    draw_frame(gobi, intersection);
+}
+
+void View::draw_frame(Drawable& gobi, BoundingBox& intersection) {
+  uint32_t color = 0xffa0a0a0;
+  m_canvas.hline(lu2cv_x(intersection.lower_left.x),
+                 lu2cv_x(intersection.upper_right.x),
+                 lu2cv_y(intersection.lower_left.y), color);
+  m_canvas.hline(lu2cv_x(intersection.lower_left.x),
+                 lu2cv_x(intersection.upper_right.x),
+                 lu2cv_y(intersection.upper_right.y), color);
+  m_canvas.vline(lu2cv_x(intersection.lower_left.x),
+                 lu2cv_y(intersection.lower_left.y),
+                 lu2cv_y(intersection.upper_right.y), color);
+  m_canvas.vline(lu2cv_x(intersection.upper_right.x),
+                 lu2cv_y(intersection.lower_left.y),
+                 lu2cv_y(intersection.upper_right.y), color);
+}
+
+void View::draw_filled(Drawable& gobi, BoundingBox& intersection) {
   // for physical lines, iterate each 'y' and get scan from Gob
   // from: intersection.lower_left.y, intersection.upper_right.y
   double miny = intersection.lower_left.y;
@@ -178,16 +202,9 @@ void View::draw(Drawable& gobi) {
 
   int32_t dv_y0 = lu2cv_y(miny);
   int32_t dv_y1 = lu2cv_y(maxy);
-#if VVERBOSE
-  printf("device y range: %d to %d (not y flipped)\n", dv_y0, dv_y1);
-  theLog.info("device y range: %d to %d (not y flipped)", dv_y0, dv_y1);
-#endif
   uint32_t color = gobi.color();
   for (int32_t y = dv_y0; y < dv_y1; y++) {
     double ly = cv2lu_y(y);
-#if VVERBOSE
-    printf("canvas y: %d  logical y: %3.3f\t", y, ly);
-#endif
 #if 0
     // show BB
     m_canvas.hline(logical2device_x(intersection.lower_left.x),
@@ -196,113 +213,12 @@ void View::draw(Drawable& gobi) {
 #endif
     double dx0, dx1;
     gobi.xrange_reset();
-#if VVERBOSE
-    if (y == dv_y0)
-      theLog.info("y: %d  ly: %3.3f  dx0: %3.3f  dx1: %3.3f", y, ly, dx0, dx1);
-#endif
     while (gobi.xrange(ly, dx0, dx1)) {
-#if VVERBOSE
-      printf("scan x: %3.3f to %3.3f (logical) (Gob)\t", dx0, dx1);
-#endif
       // x0, x1 back to physical
       int32_t dv_x0 = lu2cv_x(dx0);
       int32_t dv_x1 = lu2cv_x(dx1);
-#if VVERBOSE
-      printf("physical x: %d to %d\n", dv_x0, dv_x1);
-#endif
-      /*
-      theLog.info("scan x: %3.3f to %3.3f (logical) (Gob)\t", dx0, dx1);
-      theLog.info("physical x: %d to %d\n", dv_x0, dv_x1);
-      */
-      //m_canvas.hline(dv_x0, dv_x1, y, 0xff000000);
       m_canvas.hline(dv_x0, dv_x1, y, color); // x,y in canvas co-ordinates
     }
   }
 }
-
-#if 0
-void View::Xdraw(Canvas& canvas, uint32_t step, Group& ggrp) {
-  //
-  // check bounding box
-  // draw shape border (if there)
-  // draw shape
-
-  //double scale = m_scale_x;  // bitmap to physical(device) scale
-
-  // viewport dimensions are  x0,y0 -> x1,y1
-  double x1 = x0 + m_wx;
-  double y1 = y0 + m_wy;
-  Point p0(x0, y0);
-  Point p1(x1, y1);
-  BoundingBox view(p0);
-  view.test(p1);
-  ggrp.fix();
-
-#if VERBOSE
-  printf("view.bb: ");
-  view.show();
-  printf("ggrp.bb:  ");
-  ggrp.boundingBox().show();
-#endif
-
-  BoundingBox intersection;
-  if (!view.has_overlap(ggrp.boundingBox(), intersection)) {
-    printf("no overlap\n");
-    return;
-  } else {
-    printf("ggrp overlap\n");
-    printf("itx0:    ");
-    intersection.show();
-  }
-
-  // iterate each item
-  //std::vector<Gob *>::iterator it;
-  Group::iterator it = ggrp.begin();
-  for ( ; it != ggrp.end(); ++it) {
-    Gob &gob = *(*it);
-
-    BoundingBox intersection2;
-    if (!view.has_overlap(gob.boundingBox(), intersection2)) {
-      printf("no overlap\n");
-      return;
-    }
-#if VERBOSE
-    printf("potential overlap\n");
-    printf("itx:     ");
-    intersection.show();
-#endif
-
-    // for physical lines, iterate each 'y' and get scan from Gob
-    // from: intersection.lower_left.y, intersection.upper_right.y
-    double miny = intersection.lower_left.y;
-    double maxy = intersection.upper_right.y;
-
-    int32_t dv_y0 = logical2device_y(miny);
-    int32_t dv_y1 = logical2device_y(maxy);
-#if VVERBOSE
-    printf("device y range: %d to %d (not y flipped)\n", dv_y0, dv_y1);
-#endif
-    for (int32_t y = dv_y0; y < dv_y1; y++) {
-      double ly = device2logical_y(y);
-#if VVERBOSE
-      printf("logical y: %3.3f\t", ly);
-#endif
-      double dx0, dx1;
-      if (gob.xrange(ly, dx0, dx1)) {
-#if VVERBOSE
-        printf("scan x: %3.3f to %3.3f (logical) (ggrp)\t", dx0, dx1);
-#endif
-        // x0, x1 back to physical
-        int32_t dv_x0 = logical2device_x(dx0);
-        int32_t dv_x1 = logical2device_x(dx1);
-#if VVERBOSE
-        printf("physical x: %d to %d\n", dv_x0, dv_x1);
-#endif
-        canvas.hline(dv_x0, dv_x1, y, 0xff000000);
-      }
-    }
-    printf("\n");
-  }
-}
-#endif
 

@@ -26,6 +26,8 @@ namespace dj {
           //m_numbers(numbers, 12, 16),
           m_ascii(ascii, 10, 20),
           m_display(&m_view, &m_ascii),
+          m_selected(NULL),
+          m_editor_on(false),
           m_step(0), m_sound(false),
           m_bang(0), m_thuds(0), m_quiet(false),
           m_outcomes(NULL)
@@ -58,53 +60,15 @@ namespace dj {
     }
     m_outcomes = new PlayAffect[m_boxes * 100];
     m_outcome_ix = 0;
-    for (uint32_t i = 0; i < m_boxes / 2; i++) {
-      double x = 1.0 + drand48() * 149.0;
-      double y = 1.0 + drand48() * 149.0;
-      double w = drand48() * 2.0 + 4.0;
-      double h = drand48() * 9.0 + 4.0;
+    Box *box = new Box(150, 100, 30, 10);
+    box->m_rect.rotate_to(0);
+    box->m_rect.color(0xff00007f);
+    m_players.push_back(box);
 
-      Box *box = new Box(x + 250, y + 300, w, h);
-      double scale = drand48() + 0.5;
-      double angle = (drand48() * 2 - 1) * M_PI;
-      //Point speed(pow(drand48() * 4.0, 3.0), pow(drand48() * 4.0, 3.0));
-      Point speed(0,0);
-      box->m_rect.scale_to(scale);
-      box->m_rect.rotate_to(angle);
-      box->m_rect.color(0xff00007f 
-        + (((int)floor(x/150.0*256.0)) << 16)
-        + (((int)floor(y/150.0*256.0)) << 8));
-      if (true || lrand48() % 2 == 1) {
-        box->m_speed = speed;
-        box->m_rotation = (drand48() - 0.5) / 4.0;
-      } else {
-        box->m_rotation = 0;
-      }
-      m_players.push_back(box);
-    }
-    for (uint32_t i = 0; i < m_boxes / 2; i++) {
-      double x = 1.0 + drand48() * 149.0;
-      double y = 1.0 + drand48() * 149.0;
-      double r = drand48() * 3.0 + 3.0;
-
-      PCircle *circle = new PCircle(x + 250, y + 300, r);
-      double scale = drand48() + 0.5;
-      double angle = (drand48() * 2 - 1) * M_PI;
-      //Point speed(pow(drand48() * 4.0, 3.0), pow(drand48() * 4.0, 3.0));
-      Point speed(0,0);
-      //circle->m_rect.scale_to(scale);
-      //circle->m_rect.rotate_to(angle);
-      circle->m_circle.color(0xff00007f 
-        + (((int)floor(x/150.0*256.0)) << 16)
-        + (((int)floor(y/150.0*256.0)) << 8));
-      if (true || lrand48() % 2 == 1) {
-        circle->m_speed = speed;
-        circle->m_rotation = (drand48() - 0.5) / 4.0;
-      } else {
-        circle->m_rotation = 0;
-      }
-      m_players.push_back(circle);
-    }
+    box = new Box(300, 120, 30, 10);
+    box->m_rect.rotate_to(0);
+    box->m_rect.color(0xff007f00);
+    m_players.push_back(box);
   }
 
   void GameState::redraw(uint32_t* pixel_bits) {
@@ -161,7 +125,7 @@ namespace dj {
     printf("%s\n", buf);
 #endif
 
-#if 1
+#if 0
     // draw the sound graph
     // FIXME: factor this
     for (uint32_t y = 0; y < m_sz_y; y++) {
@@ -186,11 +150,24 @@ namespace dj {
     for (uint32_t ix = 0; ix < theLog.bufs(); ix++) {
       if (ix < 6)
         m_display.m_ascii->draw_s(m_text_canvas, theLog.buf(ix), 25, 145 - 20 * ix, 0xffffffff);
-      else
-        m_display.m_ascii->draw_s(m_text_canvas, theLog.buf(ix), 500, 145 - 20 * (ix - 6), 0xffffffff);
+      //else
+      //  m_display.m_ascii->draw_s(m_text_canvas, theLog.buf(ix), 500, 145 - 20 * (ix - 6), 0xffffffff);
     }
 #endif
 
+    // draw the "editor"
+    int16_t x = m_sound_canvas.llx() + 10;
+    int16_t y = m_sound_canvas.ury() - 30;
+
+    // bad FIXME:
+    if (m_selected_program) {
+      const char *s = m_selected_program->text();
+      uint32_t color = 0xffffffff;
+      m_display.m_ascii->draw_s2(m_sound_canvas, s, x, y, color);
+    } else {
+      uint32_t color = 0xffffffff;
+      m_display.m_ascii->draw_s2(m_sound_canvas, "Select Item", x, y, color);
+    }
   }
 
   void GameState::drag(device_t x, device_t y, int32_t dx, int32_t dy) {
@@ -205,28 +182,64 @@ namespace dj {
     //theLog.info("gs/zoom: %d,%d  => canvas: %d  %d,%d", x, y, id, tx, ty);
     m_view.zoom(tx, ty, scale);
   }
-  void GameState::key(int k) {
-    std::vector<Player*>::iterator it;
-    it = m_players.begin();
-    for ( ; it != m_players.end(); ++it) {
-      (*it)->click();
+
+  void GameState::key(int k, uint8_t sca, const char *dc, const char *cc, const char *co) {
+    //theLog.info("KEY  %d/%c  sca:%d  ed:%d cur:%d '%s'", 
+    //    k, k, sca, m_editor_on, m_editor_cursor, m_editor.c_str());
+    if (m_editor_on && m_selected_program) {
+      if (m_selected_program->editKey(k, sca, dc, cc, co)) {
+        // bell
+        theLog.info("BELL!!!");
+      }
     }
   }
   void GameState::click(device_t x, device_t y) {
     int32_t tx = 0;
     int32_t ty = 0;
     int32_t id = m_canvas_set.getCanvasId(x, y, tx, ty);
-    char buf[1024];
-    sprintf(buf, "click: %d,%d  => canvas: %d  %d,%d", x, y, tx, ty, id);
-    debug2(buf);
+    theLog.info("getCanvasId(%d %d) = %d", x, y, id);
+    double click_x = m_view.cv2lu_x(tx);
+    double click_y = m_view.cv2lu_y(ty);
+    if (id == 1) {
+      theLog.info("click: %3.3f,%3.3f", click_x, click_y);
+      // pause the game
 
-    /*
-    std::vector<Player*>::iterator it;
-    it = m_players.begin();
-    for ( ; it != m_players.end(); ++it) {
-      (*it)->click();
+      // find the closed guy, and select him
+      std::vector<Player*>::iterator it;
+      it = m_players.begin();
+      for ( ; it != m_players.end(); ++it) {
+        Player *p = *it;
+        double x = p->x();
+        double y = p->y();
+        double dx = x - click_x;
+        double dy = y - click_y;
+        double dist = sqrt(dx * dx + dy * dy);
+
+        theLog.info("dist=%3.3f", dist);
+
+        if (dist < 30) {
+          if (m_selected == p) {
+            m_selected = NULL;
+            p->selected(false);
+          } else if (m_selected) {
+            m_selected->selected(false);
+            p->selected(true);
+            m_selected = p;
+          } else {
+            p->selected(true);
+            m_selected = p;
+          }
+          if (m_selected) {
+            m_editor_on = true;
+            m_selected_program = p->program();
+          } else {
+            m_editor_on = false;
+          }
+          //p->click();
+          break;
+        }
+      }
     }
-    */
   }
   void GameState::quiet() {
     m_quiet = !m_quiet;
@@ -271,4 +284,5 @@ namespace dj {
       buffer_ix -= 44100;
   }
   */
+
 } // namespace dj

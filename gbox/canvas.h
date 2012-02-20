@@ -182,7 +182,7 @@ class CanvasSet {
         m_c[i]->setPixelBits(px);
   }
   int32_t getCanvasId(int32_t x, int32_t y, int32_t& tx, int32_t& ty) {
-    theLog.info("getCanvasId(%d %d)", x, y);
+    //theLog.info("getCanvasId(%d %d)", x, y);
     for (uint32_t i = 0; i < m_used; i++) {
       int32_t y_inv = m_c[i]->height() - y;
       if (m_c[i]) {

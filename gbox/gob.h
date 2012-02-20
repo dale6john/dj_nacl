@@ -15,11 +15,11 @@ class Drawable {
   Drawable(Point pivot, Point at, double scale, double angle)
     : m_color(0xffffffff), m_color2(0xffffffff), 
         m_at(at), m_pivot(pivot), m_scale(scale), m_heading(angle),
-        m_needs_redraw(true), m_visible(true) {}
+        m_needs_redraw(true), m_visible(true), m_filled(true) {}
   Drawable(Point at, double scale, double angle)
     : m_color(0xffffffff), m_color2(0xffffffff), 
         m_at(at), m_scale(scale), m_heading(angle),
-        m_needs_redraw(true), m_visible(true) {
+        m_needs_redraw(true), m_visible(true), m_filled(true) {
     m_pivot.assign(0.0, 0.0);
   }
  private:
@@ -41,6 +41,11 @@ class Drawable {
   inline uint32_t color() {
     return m_color;
   }
+  inline void filled(bool b) {
+    m_filled = b;
+  }
+  inline bool filled() const { return m_filled; }
+
   inline void scale_to(double scale) {
     m_scale = scale;
     m_needs_redraw = true;
@@ -66,6 +71,7 @@ class Drawable {
   inline Point& at() { return m_at; }
 
   BoundingBox& boundingBox() { 
+    // const but mutable
     fix(); 
     return m_box; 
   }
@@ -98,6 +104,7 @@ class Drawable {
   bool m_needs_redraw;
   //bool m_group_member;
   bool m_visible;
+  bool m_filled;
   //bool m_xrange_ready;
 };
 

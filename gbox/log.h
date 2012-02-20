@@ -11,7 +11,7 @@ namespace dj {
 
   class Log {
    public:
-    static const uint32_t BUFCOUNT = 12;
+    static const uint32_t BUFCOUNT = 6;
     static const uint32_t BUFSZ = 200;
     Log() {
       for (uint32_t i = 0; i < BUFCOUNT; i++) {
@@ -33,10 +33,6 @@ namespace dj {
 #if VERBOSE
       printf("LOG: %s\n", m_buf);
 #endif
-      //for (int32_t i = m_used - 1; i > 0; i--) {
-      //  strcpy(m_bufPtr[i], m_bufPtr[i - 1]); // TODO: not great
-      //}
-      // scroll
       if (m_used == BUFCOUNT) {
         for (uint32_t i = 0; i < m_used - 1; i++) {
           strncpy(m_bufPtr[i], m_bufPtr[i + 1], BUFSZ - 1); // TODO: not great

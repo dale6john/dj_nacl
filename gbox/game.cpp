@@ -161,7 +161,7 @@ namespace dj {
 
     // bad FIXME:
     if (m_selected_program) {
-      const char *s = m_selected_program->text();
+      const char *s = m_selected_program->display_text();
       uint32_t color = 0xffffffff;
       m_display.m_ascii->draw_s2(m_sound_canvas, s, x, y, color);
     } else {
@@ -186,6 +186,12 @@ namespace dj {
   void GameState::key(int k, uint8_t sca, const char *dc, const char *cc, const char *co) {
     //theLog.info("KEY  %d/%c  sca:%d  ed:%d cur:%d '%s'", 
     //    k, k, sca, m_editor_on, m_editor_cursor, m_editor.c_str());
+    if (k == 27) {
+      // escape to "run"
+      // for each player, do run, but for now, just try selected
+      if (m_selected_program)
+        m_selected_program->interpret();
+    }
     if (m_editor_on && m_selected_program) {
       if (m_selected_program->editKey(k, sca, dc, cc, co)) {
         // bell
@@ -197,7 +203,7 @@ namespace dj {
     int32_t tx = 0;
     int32_t ty = 0;
     int32_t id = m_canvas_set.getCanvasId(x, y, tx, ty);
-    theLog.info("getCanvasId(%d %d) = %d", x, y, id);
+    theLog.info("getCanvasId(%d %d) T(%d,%d) = %d", x, y, tx, ty, id);
     double click_x = m_view.cv2lu_x(tx);
     double click_y = m_view.cv2lu_y(ty);
     if (id == 1) {
@@ -238,6 +244,20 @@ namespace dj {
           //p->click();
           break;
         }
+      }
+    } else if (id == 2) {
+      // this is an editor click
+      if (m_selected_program) {
+        int32_t xx = tx - 10; // system/font constants margin
+        int32_t yy = (m_sound_canvas.ury() - m_sound_canvas.lly()) - 10 - ty;
+        int32_t dx = 10; // FIXME: system/font constants  width
+        int32_t dy = 20; // FIXME: system/font constants  height
+        double x2 = double(xx) / double(dx);
+        double y2 = double(yy) / double(dy);
+        theLog.info("xx=%d yy=%d (%d/%d)  (%3.3f, %3.3f)", xx, yy, dx, dy, x2, y2);
+        if (x2 < 0.0) x2 = 0.0;
+        if (y2 < 0.0) y2 = 0.0;
+        m_selected_program->click(uint32_t(floor(y2)), uint32_t(floor(x2)));
       }
     }
   }

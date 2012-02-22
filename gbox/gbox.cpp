@@ -31,7 +31,7 @@ namespace dj {
     "", "", "", "", "  ", "", "", "", "", "", "",
     "", "", "", "", "", "", "", "", "", "0)", "1!", "2@",
     "3#", "4$", "5%", "6^", "7&", "8*", "9(", "", "", "", "", "", "", "", "aA", "bB",
-    "cC", "dD", "eE", "ff", "gG", "hH", "iI", "jJ", "kK", "lL", "mM", "nN", "oO", "pP", "qQ",
+    "cC", "dD", "eE", "fF", "gG", "hH", "iI", "jJ", "kK", "lL", "mM", "nN", "oO", "pP", "qQ",
     "rR", "sS", "tT", "uU", "vV", "wW", "xX", "yY", "zZ", "", "", "", "", "",
     "00", "11", "22", "33", "44", "55", "66", "77", "88", "99",
       "**", "++", "", "--", "..", "//",
@@ -134,8 +134,6 @@ namespace dj {
 
     theLog.info("+Input Keyboard: ty:%d mods:%d key:%d/%c (sca:%d)", 
         type, mods, key, key, m_key_shift);
-
-    if (key == 27) return false; // let escape through
 
     if (type == 9) return false; // not sure what this is for
 

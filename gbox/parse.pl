@@ -1482,23 +1482,24 @@ my $verbose = 1;
 #my $input = '6{m(f?e)m}*';
 #my $input = '1{1{(F_<!>?@e)(e?x)3m{(f?t>)@e}t<}t>}*';
 my $input = '
-{
+@{
   # comment
   2t
   {BLUE}
   RED
   { 
     (F_<!> ?
-      $x=1;
+      m # $x=1;
+      3e
     )
-    3m
+    3m3{t>}3m3{t<}
     {
       (f?t>)
-      @e
+      2{2{3e}t>}t>
     }
     t<
   }
-  t>
+  20{t>m}
 }*
 ';
 my $input2 = '@{fm}*';
@@ -1527,6 +1528,13 @@ $cg->optimize();
 print "\n";
 
 my $bytecode = Bytecode::bytecode($assembly);
+print Dumper($bytecode);
+
+die;
+#for (0 .. 34) {
+#  printf "\"%s\",\n", $opcode_names->{$_} || "";
+#}
+#die;
 
 my $tokens2 = Tokenize::tokenize($input2, 0);
 my $tree2 = Parse::parse($tokens2, 0);

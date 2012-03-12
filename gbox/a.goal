@@ -1,0 +1,33 @@
+#my $input = '@{9{(f!>>_?:e<)@m}}';
+#my $input = '@{9{(f!>>_?e>:e<)@m}}';
+#my $input = '@{2{3m>4f}}*';
+#my $input = '6{(f<!>_-?5e4{fe}:3f2e)1{tt}}*';
+#my $input = '@{(e!_?:9t>m)(f<!>_-?ef:fe)tt}*';
+#my $input = '@{(e!_?:9t>m)}*';
+#my $input = '6{(f?4{fe})}*';
+#my $input = '6{(f?{(e?f)2m}:t>)}*';
+#my $input = '6{m(f?e)m}*';
+#my $input = '1{1{(F_<!>?@e)(e?x)3m{(f?t>)@e}t<}t>}*';
+
+@{
+  # comment
+  "hello,"
+  "world"
+  "!"
+  2t
+  {BLUE}
+  RED
+  { 
+    (F_<!> ?
+      m # $x=1;
+      3e
+    )
+    3m3{t>}3m3{t<}
+    {
+      (f?t>)
+      2{2{3e}t>}t>
+    }
+    t<
+  }
+  20{t>m}
+}*

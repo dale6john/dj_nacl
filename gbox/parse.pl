@@ -80,6 +80,7 @@ our $FIGHT = 3;
 our $EAT = 4;
 our $EXIT = 5;
 our $COLOR = 6;
+our $SAY = 7;
 our $action_names = {
   $TURN  => "TURN",
   $MOVE  => "MOVE",
@@ -87,6 +88,7 @@ our $action_names = {
   $EAT   => "EAT",
   $EXIT  => "EXIT",
   $COLOR => "COLOR",
+  $SAY   => "SAY",
 };
 
 our $FLAGEQ = 0x001;
@@ -382,7 +384,15 @@ sub bytecode {
   my $code = shift;
   my $lazy = [];
   my $labels = {};
-  my $program = [];
+
+  my $program = []; # everything output
+  my $header  = []; # exec ptr/sz, data ptr/sz, heap ptr/sz, code ptr/sz
+  my $exec = [];
+  my $data = [];
+  my $heap = [];
+  my $outcode = [];
+  my $seg = "";
+
   my $bkid = {};
   map { $bkid->{$opcode_map->{$_}} = substr($_,0,6) } keys %$opcode_map;
   my $actions = {};
@@ -403,15 +413,43 @@ sub bytecode {
   # set up execution state header
   # FIXME: bad namespace dependancy
   my $execution_state_size = int(scalar(keys(%$exec_slots)) / 2 + 1);
-  push @$lazy, [ scalar(@$program), "MAIN", 2 ];
-  push @$program, [ $opcode_map->{JUMP}, 0xfff, 0xfff ];
+  #push @$lazy, [ scalar(@$program), "MAIN", 2 ];
+  #push @$program, [ $opcode_map->{JUMP}, 0xfff, 0xfff ];
   for (1 .. $execution_state_size) {
-    push @$program, [ 0, 0, 0 ];
+    push @$exec, 0;
   }
   for my $item (@$code) {
     my ($op, $p1, $p2, $p3, $p4) = @$item;
 
-    if ($op eq "LABEL") {
+    if ($op eq "SEGMENT") {
+      $seg = $p1;
+      #if ($p1 eq "CODE") {
+      #} elsif ($p1 eq "DATA") {
+      #} elsif ($p1 eq "CONST") {
+      #}
+    } elsif ($op eq "DATA") {
+      die unless $seg eq "DATA";
+      $labels->{$p1} = scalar(@$data);
+      push @$data, [ 0, 0, $p2 ];
+    } elsif ($op eq "STRING") {
+      $labels->{$p1} = scalar(@$program);
+      my @s = split(//, $p2);
+      shift @s; pop @s;
+      while (@s) {
+        my $a = (shift @s) ||" ";
+        my $b = (shift @s) ||" ";
+        my $c = (shift @s) ||" ";
+        my $d = (shift @s) ||" ";
+        #print "$a/$b/$c/$d\n";
+        if ($seg eq "CONST") {
+          push @$heap, "$a$b$c$d";
+        } elsif ($seg eq "DATA") {
+          push @$data, "$a$b$c$d";
+        } else {
+          die;
+        }
+      }
+    } elsif ($op eq "LABEL") {
       $labels->{$p1} = scalar(@$program);
     } elsif ($op eq "USEFRAME") {
       if ($p1 eq "NONE") {
@@ -426,9 +464,6 @@ sub bytecode {
       # enter a scope
     } elsif ($op eq "EXIT") {
       $labels->{$p1} = scalar(@$program);
-    } elsif ($op eq "DATA") {
-      $labels->{$p1} = scalar(@$program);
-      push @$program, [ 0, 0, $p2 ];
     } elsif ($op eq "ZERO" || $op eq "INCR") {
       push @$lazy, [ scalar(@$program), $p1, 2 ];
       push @$program, [ $opcode_map->{$op}, 0xfff, 0xfff ];
@@ -491,12 +526,52 @@ sub bytecode {
     $program->[$at]->[$offs] = $labels->{$label};
   }
   my $ix = 0;
-  my $bytecode = [];
+  # header
+  my $bytecode = [ (0 .. 3) ];
+  my $verbose = 0;
+
+  # exec
+  my $loc_exec = scalar(@$bytecode);
+  for (@$exec) {
+    printf "EXEC: 0x%04x: %08x\n", $ix++, $_ if $verbose;
+    push @$bytecode, $_;
+  }
+
+  # data
+  $ix = 0;
+  my $loc_data = scalar(@$bytecode);
+  for (@$data) {
+    printf "DATA: 0x%04x: %08x\n", $ix++, $_->[2] if $verbose;
+    push @$bytecode, $_->[2];
+  }
+
+  # heap
+  $ix = 0;
+  my $loc_heap = scalar(@$bytecode);
+  for (@$heap) {
+    my $v = 0;
+    for (unpack("C4", $_)) {
+      $v >>= 8;
+      $v |= $_ << 24;
+    }
+    tr/\t/ /;
+    printf "HEAP: 0x%04x: %08x '%s'\n", $ix++, $v, $_ if $verbose;
+    push @$bytecode, $v;
+  }
+
+  # code
+  $ix = 0;
+  my $loc_code = scalar(@$bytecode);
   for (@$program) {
-    #printf "0x%04x: %6s %03x %03x\n", $ix++, $bkid->{$_->[0]}, $_->[1], $_->[2];
+    printf "CODE: 0x%04x: %6s %03x %03x\n", $ix++,
+          $bkid->{$_->[0]}, $_->[1], $_->[2] if $verbose;
     push @$bytecode, ($_->[0] << 24) | ($_->[1] << 12) | ( $_->[2]);
     die "$ix $_->[0]/$_->[1]/$_->[2]" unless defined $_->[1] && defined $_->[2];
   }
+  $bytecode->[0] = ($loc_exec << 16) + scalar @$exec;
+  $bytecode->[1] = ($loc_data << 16) + scalar @$data;
+  $bytecode->[2] = ($loc_heap << 16) + scalar @$heap;
+  $bytecode->[3] = ($loc_code << 16) + scalar @$code;
   return $bytecode;
 }
 
@@ -507,7 +582,7 @@ package Codegen;
 sub new {
   my $class = shift;
   my $tree = shift;
-  my $this = { _tree => $tree, _blockstack => [], _label => 0 };
+  my $this = { _tree => $tree, _blockstack => [], _label => 0, _heap => "" };
   return bless $this, $class;
 }
 sub code {
@@ -530,18 +605,26 @@ sub datagen {
     $this->code("DATA", sprintf("I%04d", $_ - 1), 0);
   }
 }
+sub heapgen {
+  my $this = shift;
+  $this->code("STRING", "HEAP", "'" . $this->{_heap} . "'");
+}
 
 sub codegen {
   my $this = shift;
+  $this->code("SEGMENT", "CODE");
   $this->code("# main");
   $this->code("LABEL", "MAIN");
   $this->codegen2($this->{_tree});
   $this->code("RETURN"); # ??
   $this->code("# interrupts");
   $this->showcx();
+  $this->code("SEGMENT", "DATA");
   $this->code("# data");
   $this->datagen();
-  $this->code("# end");
+  $this->code("SEGMENT", "CONST");
+  $this->code("# heap");
+  $this->heapgen();
   return $this->{_code};
 }
 
@@ -576,19 +659,23 @@ sub optimize {
 
 sub print {
   my $this = shift;
+  my $ret = "";
   for (@{$this->{_code}}) {
     if ($_->[0] eq "LABEL") {
-      print "$_->[1]:\n";
+      $ret .= "$_->[1]:\n";
     } elsif ($_->[0] eq "FRAME") {
-      print "$_->[1]: (FRAME)\n";
+      $ret .= "$_->[1]: (FRAME)\n";
+    } elsif ($_->[0] eq "SEGMENT") {
+      $ret .= "SEGMENT: $_->[1]\n";
     } elsif ($_->[0] eq "EXIT") {
-      print "$_->[1]: (EXIT)\n";
+      $ret .= "$_->[1]: (EXIT)\n";
     } elsif ($_->[0] eq "") {
     } elsif ($_->[0] eq "") {
     } else {
-      print "   " . join(" ", @$_) . "\n";
+      $ret .= "   " . join(" ", @$_) . "\n";
     }
   }
+  return $ret;
 }
 
 sub blockcx {
@@ -679,6 +766,11 @@ sub codegen2 {
         $mod = $at->named('_extra');
         $modop = $mod;
         #die "$mod $modop $act $actop";
+      } elsif ($at->value() eq "Say") {
+        $mod = length($this->{_heap});
+        $this->{_heap} .= $at->named('_extra') . "\t";
+        $modop = $mod;
+        #die "$mod $modop $act $actop ($heap)";
       } else {
         $mod = "";
       }
@@ -688,13 +780,14 @@ sub codegen2 {
     $actop = "MOVE" if ($act eq "m");
     $actop = "FIGHT" if ($act eq "f");
     $actop = "EAT"  if ($act eq "e");
-    $actop = "COLOR"  if ($act eq "Color");
+    $actop = "COLOR" if ($act eq "Color");
+    $actop = "SAY"  if ($act eq "Say");
     $modop = "LEFT" if $mod eq "<";
     $modop = "RIGHT" if $mod eq ">";
     if ($act eq "x") {
       $this->code("# x - break out");
       $this->code("BREAK");
-    } elsif ($modop) {
+    } elsif (defined $modop) {
       $this->code("DOMOD", $actop, $modop);
     } else {
       $this->code("DO", $actop);
@@ -838,6 +931,8 @@ sub visualize2 {
   } elsif ($tag eq "Action") {
     if ($value eq "Color") {
       print $Shared::colors->[$t->named('_extra')];
+    } elsif ($value eq "Say") {
+      print '"'.$t->named('_extra').'"';
     } else {
       print "$value";
       $this->visualize2($t->named('ActionMod'), 0, 0) if $t->named('ActionMod');
@@ -921,7 +1016,7 @@ my $statemap = {
   10 => { 'ACTION' => 9, '9' => 3, '@' => 3 },
   16 => { },
 };
-my @actions = qw/f m t e x C/;
+my @actions = qw/f m t e x C Q/;
 
 sub fixmap {
   my $map = shift;
@@ -1148,6 +1243,9 @@ sub parse {
           if ($frame->[0]->tag() eq "Color") {
             $item = Node->new("Action", $frame->[0]->tag());
             $item->add("_extra", $frame->[0]->value());
+          } elsif ($frame->[0]->tag() eq "Say") {
+            $item = Node->new("Action", $frame->[0]->tag());
+            $item->add("_extra", $frame->[0]->value());
           } else {
             $item = Node->new("Action", $frame->[0]->value());
           }
@@ -1196,6 +1294,8 @@ sub parse {
         shift @$tokens;
         if ($tk eq 'C') {
           $stack->push(Node->new("Color", $tkvalue));
+        } elsif ($tk eq 'Q') {
+          $stack->push(Node->new("Say", $tkvalue));
         } elsif (defined $tkvalue) {
           $stack->push(Node->new("Number", $tkvalue));
         } else {
@@ -1403,6 +1503,9 @@ sub tokenize {
     } elsif ($input =~ /^(\s+)/) {
       $len = length($1);
       $token = 0;
+    } elsif ($input =~ /^\"([^\"]*)\"/) {
+      $len = length($1) + 2;
+      $token = [ 'Q', $1 ];
     } elsif ($input =~ /^\$([A-Za-z])/) {
       $len = length($1) + 1;
       $token = [ '$', $1 ];
@@ -1481,30 +1584,41 @@ my $verbose = 1;
 #my $input = '6{(f?{(e?f)2m}:t>)}*';
 #my $input = '6{m(f?e)m}*';
 #my $input = '1{1{(F_<!>?@e)(e?x)3m{(f?t>)@e}t<}t>}*';
-my $input = '
-@{
-  # comment
-  2t
-  {BLUE}
-  RED
-  { 
-    (F_<!> ?
-      m # $x=1;
-      3e
-    )
-    3m3{t>}3m3{t<}
-    {
-      (f?t>)
-      2{2{3e}t>}t>
-    }
-    t<
-  }
-  20{t>m}
-}*
-';
-my $input2 = '@{fm}*';
+#my $input = '
+#@{
+#  # comment
+#  "hello,"
+#  "world"
+#  2t
+#  {BLUE}
+#  RED
+#  { 
+#    (F_<!> ?
+#      m # $x=1;
+#      3e
+#    )
+#    3m3{t>}3m3{t<}
+#    {
+#      (f?t>)
+#      2{2{3e}t>}t>
+#    }
+#    t<
+#  }
+#  20{t>m}
+#}*
+#';
+#my $input2 = '@{fm}*';
 
-print "Input:\n$input\n";
+my $infile = shift;
+my $fn = $1 if $infile =~ /(.*)\.goal/;
+open (IN, "<$infile") or die "$infile";
+my $input = "";
+while (<IN>) {
+  $input .= $_;
+}
+close(IN);
+
+#print "Input:\n$input\n";
 
 #my $tokens = tokenize($input, $verbose);
 my $tokens = Tokenize::tokenize($input, 0);
@@ -1512,24 +1626,36 @@ my $tokens = Tokenize::tokenize($input, 0);
 #print Dumper($tokens);
 
 my $tree = Parse::parse($tokens, 0);
-print "Parse Tree:\n";
+#print "Parse Tree:\n";
 #print Dumper($tree);
+#die;
 
 my $cg = Codegen->new($tree);
 
-print "TREE VISUALIZATION:\n";
-$cg->visualize();
-print "\n";
+#print "TREE VISUALIZATION:\n";
+#$cg->visualize();
+#print "\n";
 
 my $assembly = $cg->codegen();
 $cg->optimize();
-#print "ASSEMBLY:\n";
-#$cg->print();
-print "\n";
+
+if ($fn) {
+  open (AS, ">$fn.asy") or die "$fn.asy";
+  print AS "ASSEMBLY:\n";
+  print AS $cg->print();
+  print AS "\n";
+}
 
 my $bytecode = Bytecode::bytecode($assembly);
-print Dumper($bytecode);
+my $ix = 0;
+if ($fn) {
+  open (AS, ">$fn.bc") or die "$fn.bc";
+  for (@$bytecode) {
+    printf AS "%d\n", $_;
+  }
+}
 
+__END__
 die;
 #for (0 .. 34) {
 #  printf "\"%s\",\n", $opcode_names->{$_} || "";
@@ -1556,25 +1682,3 @@ for (1 .. 5) {
 my $b = gettimeofday();
 #$x->show();
 printf "%3.3f ms\n", ($b - $a) * 1000;
-exit;
-__END__
-
-print "\n";
-print "$input\n";
-my $x = Exec->new($tree);
-$x->visualize();
-print "\nExec:\n";
-my $code = $x->codegen();
-for (@$code) { print join(" ", @$_) . "\n"; }
-$x->bytecode();
-$x->execute(1);
-exit;
-
-print "\n";
-while(<STDIN>) {
-  chomp;
-  visualize(parse(tokenize("$_*", 0)));
-  print "\n";
-  print "\n";
-}
-
